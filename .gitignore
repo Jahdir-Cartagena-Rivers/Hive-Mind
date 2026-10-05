@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+node_modules/
+.t3/
+.j1/
+userdata/
+*.sqlite
+*.sqlite-*
+*.log
+dist/
+

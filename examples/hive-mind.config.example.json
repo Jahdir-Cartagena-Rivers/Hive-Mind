@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "automatic": true,
+  "vault": "C:\\Knowledge\\Hive Mind Demo",
+  "hindsight": {
+    "url": "http://127.0.0.1:8888",
+    "bank": "hive-mind-demo",
+    "timeoutMs": 60000
+  },
+  "skills": [
+    { "path": "C:\\Knowledge\\Demo Skills", "project": "Nebula" }
+  ]
+}
