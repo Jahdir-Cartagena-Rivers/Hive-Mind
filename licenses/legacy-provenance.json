@@ -1,0 +1,126 @@
+{
+  "sourceCommit": "d709391df467a41c08c4b39767868b3808ce4666",
+  "license": "MIT",
+  "files": [
+    {
+      "source": "apps/server/src/hiveMind/config.ts",
+      "file": "src/legacy/config.ts",
+      "originalSha256": "f667e6dace1758b2ff0c02c5e7017a16c6f9c56ca4ccd9c0f6fade129b6a9fdd",
+      "adaptedSha256": "0a7bc634f0699ab0799270334377b14c4a3d78139cc94b6c09bfe1bae8d09593"
+    },
+    {
+      "source": "apps/server/src/hiveMind/engine.test.ts",
+      "file": "src/legacy/engine.test.ts",
+      "originalSha256": "b71e4b056efe485caddd06bfa2111fe7b43d47b680efd06e47fdd0307db87393",
+      "adaptedSha256": "a03767acb1603720922ff1028dcf9f3e1881d7b1f4c92c800f6719011ef14ab7"
+    },
+    {
+      "source": "apps/server/src/hiveMind/engine.ts",
+      "file": "src/legacy/engine.ts",
+      "originalSha256": "87833f24a1451e8199772aa136f1ebb0b41bb8bab398e619a62deb394bd4fd44",
+      "adaptedSha256": "87833f24a1451e8199772aa136f1ebb0b41bb8bab398e619a62deb394bd4fd44"
+    },
+    {
+      "source": "apps/server/src/hiveMind/files.ts",
+      "file": "src/legacy/files.ts",
+      "originalSha256": "f47ecef2048b63797aa7ad8d054da1f45b3f953554f2a5d26b3b02fc9bfa0446",
+      "adaptedSha256": "f47ecef2048b63797aa7ad8d054da1f45b3f953554f2a5d26b3b02fc9bfa0446"
+    },
+    {
+      "source": "apps/server/src/hiveMind/hindsight.ts",
+      "file": "src/legacy/hindsight.ts",
+      "originalSha256": "6b474a80805e18d8e2c77fdd7b64a7a33e9384dc02e8d8889e4812d898686f86",
+      "adaptedSha256": "6b474a80805e18d8e2c77fdd7b64a7a33e9384dc02e8d8889e4812d898686f86"
+    },
+    {
+      "source": "apps/server/src/hiveMind/importHindsight.test.ts",
+      "file": "src/legacy/importHindsight.test.ts",
+      "originalSha256": "ddaca86ac8a65886686ce39c94b2babd7a24b4ddd93d8439560e4e58cda84d62",
+      "adaptedSha256": "3eedfa2407155be41c4803a02467d1a9986bc8e7154ce6732517495715a1bc7e"
+    },
+    {
+      "source": "apps/server/src/hiveMind/importHindsight.ts",
+      "file": "src/legacy/importHindsight.ts",
+      "originalSha256": "e7f30628c2577d417c280e8ae978ab74f165b39bd4d11c4b357052a56cff0eb9",
+      "adaptedSha256": "e7f30628c2577d417c280e8ae978ab74f165b39bd4d11c4b357052a56cff0eb9"
+    },
+    {
+      "source": "apps/server/src/hiveMind/importNative.cli.ts",
+      "file": "src/legacy/importNative.cli.ts",
+      "originalSha256": "85ab06090a71f9419465c0a4bd3e45578c20810eac699e77bf824b9df52280c2",
+      "adaptedSha256": "85ab06090a71f9419465c0a4bd3e45578c20810eac699e77bf824b9df52280c2"
+    },
+    {
+      "source": "apps/server/src/hiveMind/importNative.test.ts",
+      "file": "src/legacy/importNative.test.ts",
+      "originalSha256": "3fa50e5b09557ab5d14e189333d3714d0580b62f64bd99f898244fef188b1440",
+      "adaptedSha256": "e3b9563eeb3807ae779a7dad844df118d1b6a947263e30387d28a3f9f62b7660"
+    },
+    {
+      "source": "apps/server/src/hiveMind/importNative.ts",
+      "file": "src/legacy/importNative.ts",
+      "originalSha256": "e7b623dee840fa5c9ee0f928ff2a9786f5f4f8651046b75eb305732c4d77546a",
+      "adaptedSha256": "e7b623dee840fa5c9ee0f928ff2a9786f5f4f8651046b75eb305732c4d77546a"
+    },
+    {
+      "source": "apps/server/src/hiveMind/localEngine.test.ts",
+      "file": "src/legacy/localEngine.test.ts",
+      "originalSha256": "daf6dac20e4d94cb31a044ce8ca1d00660bc0016462c4ebf64f9ac83d71a416a",
+      "adaptedSha256": "c1a670e7c6b70c0b9c034080405f0ec4ae389752e52122978f34ba0fb05d9fd2"
+    },
+    {
+      "source": "apps/server/src/hiveMind/localEngine.ts",
+      "file": "src/legacy/localEngine.ts",
+      "originalSha256": "86341e59c55198cf60abfe7a3b5c37e2671ee53ae8ea5f9f6f8dcb0ddf8afb93",
+      "adaptedSha256": "efc219f3eb35ea90f96f306cb6ae9eae7bd243586551c7bac7605247c3ee005e"
+    },
+    {
+      "source": "apps/server/src/hiveMind/manage.cli.ts",
+      "file": "src/legacy/manage.cli.ts",
+      "originalSha256": "957e22c8d324ccf710827c258f84195dfd88c95d8cd9c93551e4ae6d0b5d1839",
+      "adaptedSha256": "957e22c8d324ccf710827c258f84195dfd88c95d8cd9c93551e4ae6d0b5d1839"
+    },
+    {
+      "source": "apps/server/src/hiveMind/runtime.test.ts",
+      "file": "src/legacy/runtime.test.ts",
+      "originalSha256": "cf45287d504200db4f26cfde945f995ede5ccf1126d7ccd943e62708c485efa0",
+      "adaptedSha256": "cea9df15e9ce09065bde9c976d13825b83b97dc263303e6b8569102d47a86fc0"
+    },
+    {
+      "source": "apps/server/src/hiveMind/runtime.ts",
+      "file": "src/legacy/runtime.ts",
+      "originalSha256": "714dcc3b58aa7da36add5791d08437b2e69d408a66b5fcff0226c34906d52c6d",
+      "adaptedSha256": "919591e6f3e1973cd3e5374a2075a034c01294b649b3f9a4ff05a48c1d1da48c"
+    },
+    {
+      "source": "apps/server/src/hiveMind/skills.ts",
+      "file": "src/legacy/skills.ts",
+      "originalSha256": "0aa4d5ed21bca1e039eceaa3d3f6bc1c6c81403f8ae7547c7e229bcc5dffd958",
+      "adaptedSha256": "0aa4d5ed21bca1e039eceaa3d3f6bc1c6c81403f8ae7547c7e229bcc5dffd958"
+    },
+    {
+      "source": "apps/server/src/hiveMind/store.test.ts",
+      "file": "src/legacy/store.test.ts",
+      "originalSha256": "45292ef6b932dd4be797d623d64b7e6bd78e5c82bddb19778732e62d943ca130",
+      "adaptedSha256": "2b74ac1e5d1670bfd8cc226a431b79057196fe125b1f3fffcb27d3f76a94ab46"
+    },
+    {
+      "source": "apps/server/src/hiveMind/store.ts",
+      "file": "src/legacy/store.ts",
+      "originalSha256": "b78063236c268cb7b81d2bcdc5c6a939f1c29d644d6de5846dbeccec8b064dfe",
+      "adaptedSha256": "b78063236c268cb7b81d2bcdc5c6a939f1c29d644d6de5846dbeccec8b064dfe"
+    },
+    {
+      "source": "apps/server/src/hiveMind/vault.ts",
+      "file": "src/legacy/vault.ts",
+      "originalSha256": "d8bf9655ed4be780063abd5766a501d95bfc7996d815e97cdeaee79548591922",
+      "adaptedSha256": "d8bf9655ed4be780063abd5766a501d95bfc7996d815e97cdeaee79548591922"
+    },
+    {
+      "source": "packages/contracts/src/hiveMind.ts",
+      "file": "src/legacy/contracts.ts",
+      "originalSha256": "e2ae25996c47afe5fb8ed32464d89f4b06857e6eeae5b26be845a90c341f3ec8",
+      "adaptedSha256": "e2ae25996c47afe5fb8ed32464d89f4b06857e6eeae5b26be845a90c341f3ec8"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@hive-mind/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Source-available Hive Mind standalone service with explicitly MIT legacy engine",
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "scripts": {
+    "start": "node src/cli.mjs",
+    "test": "node --test test/service.test.mjs test/publication.test.mjs && vp test run",
+    "test:service": "node --test test/service.test.mjs",
+    "check:publication": "node scripts/check-publication.mjs"
+  },
+  "dependencies": {
+    "effect": "4.0.0-rc.115",
+    "yaml": "2.9.0"
+  },
+  "devDependencies": {
+    "vite": "npm:@voidzero-dev/vite-plus-core@0.3.3",
+    "vite-plus": "0.3.3"
+  },
+  "engines": {
+    "node": ">=24.13.0"
+  }
+}

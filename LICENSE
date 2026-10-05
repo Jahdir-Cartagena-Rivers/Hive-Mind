@@ -1,22 +1,32 @@
-MIT License
+Hive Mind - Reserved Rights Notice
 
-Copyright (c) 2026 T3 Tools Inc.
-Copyright (c) 2026 Hive Mind contributors
+Effective for new material first introduced by the source-available licensing
+commit dated October 5, 2026, and later revisions.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Copyright (c) 2026 the respective Hive Mind rights holders.
+All rights reserved in original, copyrightable contributions they own.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+No general license is offered to copy, modify, redistribute, sublicense, sell,
+or incorporate new protected material into another product. Obtain separate
+written permission from the relevant rights holder before doing so.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+This notice does not restrict rights provided by applicable law or the hosting
+platform's terms, including GitHub's permitted viewing and on-platform forking.
+Public visibility is not an open-source license. This notice does not assign
+copyright, create copyright in ineligible material, or claim exclusive rights
+over ideas, functional behavior, facts, third-party names, or third-party code.
+
+EXCEPTIONS AND PRIOR GRANTS
+
+1. src/legacy/ is MIT, including its standalone import-path adaptations.
+   Its directory notice and licenses/T3-MIT.txt control that material.
+2. Showcase material through commit 36a78152d3e06c854ea4d003b5bc5a930c6e85a1
+   and the J1Code implementation at d709391df467a41c08c4b39767868b3808ce4666
+   were distributed under MIT. Previously granted permissions remain intact.
+   Unchanged synthetic examples retain MIT. See licenses/LEGACY-MIT.txt.
+3. Dependencies and other third-party material retain their own licenses and
+   required notices. This reservation does not override them.
+
+No warranty or assurance of exclusive ownership, copyright eligibility, or
+non-infringement is provided. Obtain legal review before relying on these terms
+for commercial enforcement or rights clearance.

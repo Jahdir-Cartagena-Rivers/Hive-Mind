@@ -7,7 +7,5 @@
     "bank": "hive-mind-demo",
     "timeoutMs": 60000
   },
-  "skills": [
-    { "path": "C:\\Knowledge\\Demo Skills", "project": "Nebula" }
-  ]
+  "skills": [{ "path": "C:\\Knowledge\\Demo Skills", "project": "Nebula" }]
 }
