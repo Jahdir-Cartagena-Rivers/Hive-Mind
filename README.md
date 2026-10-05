@@ -42,7 +42,8 @@ flowchart LR
     skills[Selected skill descriptions] --> memory
 ```
 
-J1 Code retains its existing MIT J1 edition and public downloads. This standalone
+J1 Code retains MIT permissions for its existing edition and keeps public downloads.
+New protected J1 contributions follow its own current license terms. This standalone
 service is a separate deployment; J1 does not silently switch storage or launch
 it. The [architecture overview](docs/architecture.md) explains correction and
 retrieval behavior.

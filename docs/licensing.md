@@ -10,7 +10,9 @@ records the source paths, commit, and fingerprints. Third-party packages retain
 their own licenses. Unchanged synthetic examples and earlier showcase versions
 remain MIT. No permission already granted is withdrawn.
 
-J1Code and its existing downloads stay public. Moving copies here does not make
+J1Code and its existing downloads stay public. Its new protected contributions
+now follow its own reserved-rights terms, while upstream and previously MIT
+material keep their permissions. Moving copies here does not make
 the earlier J1 implementation exclusive. A J1-only check would be removable by
 someone with source access and would not change those MIT permissions.
 
