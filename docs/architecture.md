@@ -48,4 +48,3 @@ These links pin the working implementation to a specific commit:
 | Original Hindsight import | [importHindsight.ts](https://github.com/Jahdir-Cartagena-Rivers/J1Code/blob/d709391df467a41c08c4b39767868b3808ce4666/apps/server/src/hiveMind/importHindsight.ts) |
 | Wire contracts | [hiveMind.ts](https://github.com/Jahdir-Cartagena-Rivers/J1Code/blob/d709391df467a41c08c4b39767868b3808ce4666/packages/contracts/src/hiveMind.ts) |
 | Native management page | [HiveMindSettings.tsx](https://github.com/Jahdir-Cartagena-Rivers/J1Code/blob/d709391df467a41c08c4b39767868b3808ce4666/apps/web/src/components/settings/HiveMindSettings.tsx) |
-
