@@ -1,8 +1,8 @@
 # Standalone service
 
-Install Node.js 24.13 or newer, then run `npm ci --ignore-scripts`. The runtime
+Install Node.js 24.13 or newer, then run `npm ci`. The runtime
 dependencies are the same Effect and YAML versions already used by the J1 core.
-No model, browser, or Hindsight installation is performed automatically.
+The semantic model downloads on first sync (see desktop.md). No browser or Hindsight installation is performed automatically.
 
 In PowerShell, create a token in the current process and start a separate state
 directory:
@@ -44,6 +44,5 @@ or directories with an application state database/settings file. It does not
 migrate J1 data automatically. Keep its state and vault dedicated to this service.
 Stop with Ctrl+C; restart with the same state directory to preserve records.
 
-J1's current settings, provider tools, and Dot memory route continue using the J1
-edition. They are not silently redirected to this standalone service. The HTTP
-API is available to clients that explicitly choose this separate deployment.
+The desktop app embeds this service; see [desktop.md](desktop.md) for the graph
+interface, the MCP endpoint, and connecting other applications.

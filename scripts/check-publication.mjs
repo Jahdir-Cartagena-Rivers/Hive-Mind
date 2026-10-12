@@ -26,6 +26,14 @@ const ROOT_FILES = new Set([
   "licenses/T3-MIT.txt",
   "licenses/legacy-provenance.json",
   "src/service.mjs",
+  "src/mcp.mjs",
+  "app/main.mjs",
+  "app/preload.cjs",
+  "app/ui/index.html",
+  "app/ui/style.css",
+  "app/ui/app.js",
+  "scripts/make-icon.mjs",
+  "docs/desktop.md",
   "src/cli.mjs",
   "src/legacy/LICENSE",
   "test/service.test.mjs",
@@ -56,7 +64,8 @@ const LEGACY_NAMES = new Set([
 ]);
 const allowed = (name) =>
   ROOT_FILES.has(name) ||
-  (name.startsWith("src/legacy/") && LEGACY_NAMES.has(name.slice("src/legacy/".length)));
+  (name.startsWith("src/legacy/") && LEGACY_NAMES.has(name.slice("src/legacy/".length))) ||
+  /^src\/core\/[A-Za-z]+(?:\.test|\.cli)?\.ts$/u.test(name);
 const sha256 = (data) => createHash("sha256").update(data).digest("hex");
 const git = (root, args) =>
   execFileSync("git", args, {

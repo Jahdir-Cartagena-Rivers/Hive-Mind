@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'"
+    />
+    <title>Hive Mind</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Hive Mind</h1>
+      <span id="stats" class="chips"></span>
+      <span class="spacer"></span>
+      <button id="new">New memory</button>
+      <button id="sync">Sync</button>
+      <button id="settings">Settings</button>
+    </header>
+    <main>
+      <aside id="left">
+        <input id="search" type="search" placeholder="Search memories by meaning…" autocomplete="off" />
+        <div id="filters"></div>
+        <ul id="results"></ul>
+      </aside>
+      <section id="stage">
+        <canvas id="graph"></canvas>
+        <div id="tip" hidden></div>
+        <div id="hint">Scroll to zoom · drag to pan · click a node</div>
+      </section>
+      <aside id="right" hidden>
+        <div class="row"><span id="badge"></span><button id="close" class="quiet">✕</button></div>
+        <h2 id="title"></h2>
+        <textarea id="fact" spellcheck="false"></textarea>
+        <div class="row">
+          <button id="save">Save</button>
+          <button id="forget" class="danger">Forget</button>
+          <span id="saved" class="muted"></span>
+        </div>
+        <h3>Related</h3>
+        <ul id="related"></ul>
+        <p id="source" class="muted"></p>
+      </aside>
+    </main>
+
+    <dialog id="compose">
+      <form method="dialog">
+        <h2>New memory</h2>
+        <label>Scope
+          <select id="c-scope"><option value="project">Project</option><option value="general">General</option></select>
+        </label>
+        <label>Project <input id="c-project" /></label>
+        <label>Subject <input id="c-subject" required /></label>
+        <label>Fact <textarea id="c-fact" required></textarea></label>
+        <div class="row"><button value="save">Save</button><button value="cancel" class="quiet" formnovalidate>Cancel</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="config">
+      <form method="dialog">
+        <h2>Settings</h2>
+        <h3>Vault</h3>
+        <p class="muted">Markdown notes mirrored from your memories. Optional, and readable by any editor.</p>
+        <div class="row"><code id="vault">Not set</code><button type="button" id="pick-vault">Choose…</button><button type="button" id="open-vault" class="quiet">Open folder</button></div>
+        <h3>Skills folders</h3>
+        <ul id="skills"></ul>
+        <div class="row"><button type="button" id="add-skills">Add folder…</button></div>
+        <h3>Behavior</h3>
+        <label class="inline"><input type="checkbox" id="automatic" /> Sync automatically</label>
+        <label class="inline"><input type="checkbox" id="login" /> Start with Windows</label>
+        <h3>Connect other apps</h3>
+        <p class="muted">J1 Code and agents read <code id="conn-file"></code> to find this service. MCP address:</p>
+        <div class="row"><code id="mcp"></code><button type="button" id="copy-token" class="quiet">Copy token</button></div>
+        <h3>Import from Hindsight</h3>
+        <p class="muted">Reads original documents from a Hindsight bank without changing it.</p>
+        <div class="row"><input id="h-url" value="http://127.0.0.1:8888" /><input id="h-bank" placeholder="bank" /><button type="button" id="import">Import</button></div>
+        <p id="config-note" class="muted"></p>
+        <div class="row"><button value="done">Done</button></div>
+      </form>
+    </dialog>
+    <script src="app.js"></script>
+  </body>
+</html>

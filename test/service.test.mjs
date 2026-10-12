@@ -4,6 +4,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { randomBytes } from "node:crypto";
+// Unit tests stay offline; the model is exercised in src/core tests and in the app.
+process.env.HIVE_MIND_SEMANTIC = "off";
 import { startHiveMind, validateStateDirectory } from "../src/service.mjs";
 
 const fact = {
@@ -25,6 +27,7 @@ async function fixture(t) {
     directory,
     token,
     readToken,
+    origin: () => service.origin,
     async restart() {
       await service.close();
       service = await startHiveMind({ stateDirectory: directory, token, readToken, port: 0 });
@@ -148,4 +151,60 @@ test("malformed existing state is rejected without overwriting the file", async 
     startHiveMind({ stateDirectory: directory, token: randomBytes(32).toString("hex"), port: 0 }),
   );
   assert.equal(await fs.readFile(file, "utf8"), "{malformed");
+});
+
+test("graph, detail and context endpoints serve read tokens; MCP honors token permissions", async (t) => {
+  const f = await fixture(t);
+  const saved = (await f.request("/v1/remember", fact)).value.memory;
+  await f.request("/v1/remember", { ...fact, subject: "Insulation", fact: "Foam slows heat." });
+
+  const graph = (await f.request("/v1/graph", {}, f.readToken)).value;
+  assert.equal(graph.nodes.length, 2);
+  assert.deepEqual(
+    graph.hubs.map((hub) => hub.title),
+    ["Nebula"],
+  );
+  assert.equal(graph.edges.filter((edge) => edge.type === "hub").length, 2);
+
+  const detail = (await f.request("/v1/memory", { id: saved.id }, f.readToken)).value;
+  assert.equal(detail.memory.fact, fact.fact);
+  assert.equal((await f.request("/v1/memory", { id: "missing" }, f.readToken)).status, 404);
+
+  const context = (
+    await f.request("/v1/context", { query: "copper heat", projects: ["Nebula"] }, f.readToken)
+  ).value;
+  assert.match(context.context, /Copper fins/u);
+
+  const rpc = (id, method, params) => ({ jsonrpc: "2.0", id, method, params });
+  const tools = (await f.request("/mcp", rpc(1, "tools/list"), f.readToken)).value.result.tools;
+  assert.ok(tools.some((tool) => tool.name === "hive_mind_recall"));
+  const denied = (
+    await f.request(
+      "/mcp",
+      rpc(2, "tools/call", { name: "hive_mind_forget", arguments: { id: saved.id } }),
+      f.readToken,
+    )
+  ).value;
+  assert.equal(denied.result.isError, true);
+  const recalled = (
+    await f.request(
+      "/mcp",
+      rpc(3, "tools/call", { name: "hive_mind_recall", arguments: { query: "copper" } }),
+      f.readToken,
+    )
+  ).value;
+  assert.match(recalled.result.content[0].text, /Cooling material/u);
+  const removed = (
+    await f.request(
+      "/mcp",
+      rpc(4, "tools/call", { name: "hive_mind_forget", arguments: { id: saved.id } }),
+    )
+  ).value;
+  assert.equal(JSON.parse(removed.result.content[0].text).removed, true);
+  const notification = await fetch(`${f.origin()}/mcp`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${f.token}`, "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
+  });
+  assert.equal(notification.status, 202);
 });

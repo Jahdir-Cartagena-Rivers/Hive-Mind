@@ -7,6 +7,11 @@ and a skills catalog into one system. This repository contains the standalone
 core and an authenticated local HTTP service. It uses explicit state directories,
 so it can run independently of J1 Code and its user profiles.
 
+**The desktop app is the main interface.** Explore your memories as a graph, search
+them by meaning, edit or forget them, and manage the vault and skills folders, all
+inside Hive Mind. See the [desktop guide](docs/desktop.md). J1 Code and other tools
+connect through the MCP and HTTP endpoints instead of embedding Hive Mind.
+
 **Source-available, with restrictive terms for new protected material.** Public
 access is not a general permission to reuse the new service implementation. The
 previously released core in [src/legacy](src/legacy) remains MIT. Read
@@ -14,7 +19,7 @@ previously released core in [src/legacy](src/legacy) remains MIT. Read
 
 ## Start a separate environment
 
-Requires Node.js 24.13 or newer. Install with `npm ci --ignore-scripts`. Generate
+Requires Node.js 24.13 or newer. Install with `npm ci` (install scripts fetch the Electron and ONNX runtime binaries). Generate
 a random bearer token, provide it through `HIVE_MIND_TOKEN`, then run:
 
 ```text

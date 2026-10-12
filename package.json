@@ -9,17 +9,62 @@
     "start": "node src/cli.mjs",
     "test": "node --test test/service.test.mjs test/publication.test.mjs && vp test run",
     "test:service": "node --test test/service.test.mjs",
-    "check:publication": "node scripts/check-publication.mjs"
+    "check:publication": "node scripts/check-publication.mjs",
+    "app": "electron .",
+    "dist": "electron-builder --win",
+    "dist:dir": "electron-builder --win dir",
+    "preapp": "node scripts/make-icon.mjs",
+    "predist": "node scripts/make-icon.mjs",
+    "predist:dir": "node scripts/make-icon.mjs"
   },
   "dependencies": {
+    "@huggingface/tokenizers": "0.2.0",
     "effect": "4.0.0-rc.115",
+    "onnxruntime-node": "1.30.0",
     "yaml": "2.9.0"
   },
   "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
     "vite": "npm:@voidzero-dev/vite-plus-core@0.3.3",
     "vite-plus": "0.3.3"
   },
   "engines": {
     "node": ">=24.13.0"
+  },
+  "main": "app/main.mjs",
+  "author": "Hive Mind rights holders",
+  "build": {
+    "appId": "com.hivemind.app",
+    "productName": "Hive Mind",
+    "copyright": "Copyright (c) 2026 the respective Hive Mind rights holders. All rights reserved.",
+    "asar": false,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "app/**",
+      "src/**",
+      "assets/**",
+      "package.json",
+      "LICENSE",
+      "licenses/**",
+      "!**/*.test.ts",
+      "!src/legacy/**/*.cli.ts"
+    ],
+    "extraMetadata": {
+      "main": "app/main.mjs"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false
+    }
   }
 }

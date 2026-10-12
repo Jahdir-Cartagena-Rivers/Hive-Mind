@@ -24,3 +24,5 @@ coverage/
 *.key
 *.p12
 *.pfx
+dist/
+assets/

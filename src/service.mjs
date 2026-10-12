@@ -10,15 +10,18 @@ import {
   HiveMindMutation,
   HiveMindSearchInput,
   HiveMindImportInput,
-} from "./legacy/contracts.ts";
-import { HiveMindRuntime } from "./legacy/runtime.ts";
-import { recallHiveMind, rememberHiveMind, forgetHiveMind } from "./legacy/engine.ts";
-import { readHiveMind, hiveMemoryDigest, editHiveFact } from "./legacy/store.ts";
-import { importHiveHindsight } from "./legacy/importHindsight.ts";
-import { HiveLocalEngine } from "./legacy/localEngine.ts";
-import { readHiveConfig } from "./legacy/config.ts";
+} from "./core/contracts.ts";
+import { HiveMindRuntime } from "./core/runtime.ts";
+import { forgetHiveMind, hiveMindStatus, recallHiveMind, rememberHiveMind } from "./core/engine.ts";
+import { hiveGraph, hiveMemoryDetail } from "./core/graph.ts";
+import { handleMcp } from "./mcp.mjs";
+import { readHiveMind, hiveContext, hiveMemoryDigest, editHiveFact } from "./core/store.ts";
+import { importHiveHindsight } from "./core/importHindsight.ts";
+import { HiveLocalEngine } from "./core/localEngine.ts";
+import { readHiveConfig } from "./core/config.ts";
 
 const MAX_BODY = 64 * 1024;
+const readOperations = new Set(["/v1/search", "/v1/graph", "/v1/memory", "/v1/context"]);
 class RequestError extends Error {
   constructor(status, message) {
     super(message);
@@ -150,7 +153,49 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
       if (request.method === "GET" && url.pathname === "/v1/status")
         return respond(response, 200, await runtime.snapshot());
       if (request.method !== "POST") throw new RequestError(404, "Unknown operation.");
+      if (url.pathname === "/mcp") {
+        const message = await readBody(request);
+        const reply = await handleMcp(message, {
+          canWrite: access === "write",
+          call: async (name, args) => {
+            switch (name) {
+              case "hive_mind_recall": {
+                const input = decode(HiveMindSearchInput, args);
+                return recallHiveMind(file, input.query, input.project);
+              }
+              case "hive_mind_remember": {
+                const input = decode(HiveMindMutation, { ...args, action: "remember" });
+                return {
+                  memory: await rememberHiveMind(file, {
+                    ...input,
+                    project: input.project ?? null,
+                    sourceThreadId: "hive-mind-mcp",
+                  }),
+                };
+              }
+              case "hive_mind_forget": {
+                const input = decode(HiveMindMutation, { ...args, action: "forget" });
+                return { removed: await forgetHiveMind(file, input.id) };
+              }
+              case "hive_mind_status":
+                return hiveMindStatus(file);
+              default:
+                runtime.requestSync();
+                await runtime.waitIdle();
+                return runtime.snapshot();
+            }
+          },
+        });
+        if (reply === null) {
+          response.writeHead(202).end();
+          return;
+        }
+        return respond(response, 200, reply);
+      }
       const operations = new Set([
+        "/v1/graph",
+        "/v1/memory",
+        "/v1/context",
         "/v1/search",
         "/v1/remember",
         "/v1/edit",
@@ -160,11 +205,29 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
         "/v1/import",
       ]);
       if (!operations.has(url.pathname)) throw new RequestError(404, "Unknown operation.");
-      if (access !== "write" && url.pathname !== "/v1/search")
+      if (access !== "write" && !readOperations.has(url.pathname))
         throw new RequestError(403, "This token has read-only access.");
       const body = await readBody(request);
       let result;
       switch (url.pathname) {
+        case "/v1/graph":
+          result = await hiveGraph(file);
+          break;
+        case "/v1/memory": {
+          result = await hiveMemoryDetail(file, String(body.id ?? ""));
+          if (!result) throw new RequestError(404, "No such record.");
+          break;
+        }
+        case "/v1/context":
+          // Prompt-ready background notes for the caller's current project(s).
+          result = {
+            context: hiveContext(
+              file,
+              String(body.query ?? ""),
+              Array.isArray(body.projects) ? body.projects.map(String) : [],
+            ),
+          };
+          break;
         case "/v1/search": {
           const input = decode(HiveMindSearchInput, body);
           result = await recallHiveMind(file, input.query, input.project);
