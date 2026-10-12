@@ -166,6 +166,11 @@ test("graph, detail and context endpoints serve read tokens; MCP honors token pe
   );
   assert.equal(graph.edges.filter((edge) => edge.type === "hub").length, 2);
 
+  const traced = (await f.request("/v1/remember", { ...fact, subject: "Traced", sourceThreadId: "chat:42" })).value.memory;
+  const untraced = await f.request("/v1/remember", { ...fact, subject: "Untraced", sourceThreadId: "bad id!" });
+  assert.equal(untraced.value.memory?.sourceThreadId, "hive-mind-api", JSON.stringify(untraced));
+  assert.equal((await f.request("/v1/remember", { ...fact, subject: "Untraced", sourceThreadId: "bad id!" })).value.memory.sourceThreadId, "hive-mind-api");
+
   const detail = (await f.request("/v1/memory", { id: saved.id }, f.readToken)).value;
   assert.equal(detail.memory.fact, fact.fact);
   assert.equal((await f.request("/v1/memory", { id: "missing" }, f.readToken)).status, 404);
@@ -207,4 +212,13 @@ test("graph, detail and context endpoints serve read tokens; MCP honors token pe
     body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
   });
   assert.equal(notification.status, 202);
+});
+
+test("rapid saves while automatic synchronization runs all succeed", async (t) => {
+  const f = await fixture(t);
+  for (let index = 0; index < 25; index++) {
+    const saved = await f.request("/v1/remember", { ...fact, subject: `Burst ${index}` });
+    assert.equal(saved.status, 200, JSON.stringify(saved.value));
+  }
+  assert.equal((await f.request("/v1/status")).value.records, 25);
 });

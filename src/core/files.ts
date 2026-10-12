@@ -22,13 +22,26 @@ export async function ensureDirectory(directory: string) {
     throw new Error("Hive Mind projection directories must not be symbolic links.");
 }
 
+/** Windows can briefly refuse to replace a file another operation has open; retry instead of failing the write. */
+export async function renameReplacing(from: string, to: string) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await NodeFSP.rename(from, to);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if ((code !== "EPERM" && code !== "EBUSY" && code !== "EACCES") || attempt >= 8) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 15 * attempt));
+    }
+  }
+}
+
 export async function writeAtomic(file: string, text: string) {
   await ensureDirectory(NodePath.dirname(file));
   await readOptional(file);
   const temporary = `${file}.${NodeCrypto.randomUUID()}.tmp`;
   try {
     await NodeFSP.writeFile(temporary, text, { encoding: "utf8", flag: "wx" });
-    await NodeFSP.rename(temporary, file);
+    await renameReplacing(temporary, file);
   } finally {
     await NodeFSP.rm(temporary, { force: true });
   }

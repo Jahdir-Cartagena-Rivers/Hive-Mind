@@ -242,7 +242,11 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
           const memory = await rememberHiveMind(file, {
             ...input,
             project: input.project ?? null,
-            sourceThreadId: "hive-mind-api",
+            // Connected apps may name the chat a memory came from, for provenance.
+            sourceThreadId:
+              typeof body.sourceThreadId === "string" && /^[\w:.-]{1,128}$/u.test(body.sourceThreadId)
+                ? body.sourceThreadId
+                : "hive-mind-api",
           });
           result = { memory: { ...memory, revision: hiveMemoryDigest(memory) } };
           break;

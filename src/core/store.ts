@@ -3,6 +3,7 @@ import * as NodeCrypto from "node:crypto";
 import * as NodeFSP from "node:fs/promises";
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
+import { renameReplacing } from "./files.ts";
 
 export interface HiveMemory {
   readonly id: string;
@@ -223,7 +224,7 @@ async function writeHiveMind(filePath: string, data: HiveFile): Promise<void> {
       encoding: "utf8",
       flag: "wx",
     });
-    await NodeFSP.rename(temporary, filePath);
+    await renameReplacing(temporary, filePath);
     readCache.delete(filePath);
   } finally {
     await NodeFSP.rm(temporary, { force: true });
