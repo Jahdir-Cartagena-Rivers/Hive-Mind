@@ -10,7 +10,9 @@ import {
   relatedHiveMemories,
   semanticRecall,
   syncHiveVectors,
+  continuityIndexFile,
 } from "./semantic.ts";
+import { continuityMemories } from "./continuity.ts";
 import { discoverHiveSkills } from "./skills.ts";
 import {
   forgetHiveFact,
@@ -143,7 +145,7 @@ export async function forgetHiveMind(file: string, id: string) {
 
 export async function hiveMindStatus(file: string) {
   const config = await readHiveConfig(file);
-  const { memories } = await readHiveMind(file);
+  const { memories, continuity } = await readHiveMind(file);
   const index = config.hindsight
     ? await readIndex(file, indexTarget(config.hindsight.url, config.hindsight.bank))
     : {};
@@ -155,10 +157,15 @@ export async function hiveMindStatus(file: string) {
     skills: memories.filter((memory) => memory.kind === "skill").length,
     vault: config.vault ?? null,
     retrievalConfigured: true,
-    pendingIndex: config.hindsight
-      ? memories.filter((memory) => index[memory.id] !== hiveMemoryDigest(memory)).length +
-        Object.keys(index).filter((id) => !ids.has(id)).length
-      : pendingVectors,
+    pendingIndex:
+      (config.hindsight
+        ? memories.filter((memory) => index[memory.id] !== hiveMemoryDigest(memory)).length +
+          Object.keys(index).filter((id) => !ids.has(id)).length
+        : pendingVectors) +
+      (await pendingHiveVectors(
+        continuityIndexFile(file),
+        continuityMemories(continuity?.records ?? []),
+      )),
     skillRoots: config.skills?.length ?? 0,
   };
 }
@@ -184,6 +191,14 @@ async function synchronize(file: string, maxIndexed: number) {
   const issues: string[] = [];
   let importedSkills = 0;
   let indexed = 0;
+  try {
+    await syncHiveVectors(
+      continuityIndexFile(file),
+      continuityMemories((await readHiveMind(file)).continuity?.records ?? []),
+    );
+  } catch (error) {
+    issues.push(`Continuity semantic index: ${String(error)}`);
+  }
   if (config.skills?.length) {
     const skills = await discoverHiveSkills(config.skills);
     issues.push(...skills.issues);

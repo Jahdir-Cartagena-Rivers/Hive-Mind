@@ -75,7 +75,8 @@ function layout(steps) {
               }
               // Falls to zero at the grid's reach so cell borders leave no seams.
               const reach = Math.max(0, 1 - Math.sqrt(d2) / (cell * 2));
-              const f = ((a.hub && b.hub ? 6000 : a.hub || b.hub ? 1800 : 520) * alpha * reach) / d2;
+              const f =
+                ((a.hub && b.hub ? 6000 : a.hub || b.hub ? 1800 : 520) * alpha * reach) / d2;
               a.vx += ox * f;
               a.vy += oy * f;
             }
@@ -136,8 +137,11 @@ function build(data) {
     byId.set(item.id, node);
     return node;
   };
-  for (const hub of data.hubs) place({ id: hub.id, title: hub.title, project: hub.title }, null, true);
-  const hubOf = new Map(data.edges.filter((e) => e.type === "hub").map((e) => [e.source, byId.get(e.target)]));
+  for (const hub of data.hubs)
+    place({ id: hub.id, title: hub.title, project: hub.title }, null, true);
+  const hubOf = new Map(
+    data.edges.filter((e) => e.type === "hub").map((e) => [e.source, byId.get(e.target)]),
+  );
   for (const memory of data.nodes) place(memory, hubOf.get(memory.id), false);
   state.nodes = nodes;
   state.byId = byId;
@@ -146,8 +150,11 @@ function build(data) {
     const b = byId.get(e.target);
     return a && b ? [{ a, b, type: e.type }] : [];
   });
-  for (const memory of data.nodes) { const hub = hubOf.get(memory.id); if (hub) hub.members = (hub.members ?? 0) + 1; }
-  state.records = data.nodes.length;
+  for (const memory of data.nodes) {
+    const hub = hubOf.get(memory.id);
+    if (hub) hub.members = (hub.members ?? 0) + 1;
+  }
+  state.records = data.memoryRecords ?? data.nodes.length;
   const fresh = old.size === 0;
   layout(fresh ? 320 : 70);
   if (fresh) fit();
@@ -236,7 +243,8 @@ function draw() {
     const text = node.title.length > 32 ? `${node.title.slice(0, 31)}…` : node.title;
     ctx.fillText(text, node.x + node.r + 3 / k, node.y);
   };
-  for (const node of state.nodes) if (node.hub && active(node) && (node.members >= 8 || k > 1.2)) label(node, 12);
+  for (const node of state.nodes)
+    if (node.hub && active(node) && (node.members >= 8 || k > 1.2)) label(node, 12);
   if (focus) {
     label(focus, 12);
     neighbors.forEach((node) => label(node, 11));
@@ -342,6 +350,12 @@ function center(node) {
 async function select(id, recenter = false) {
   state.selected = id;
   const node = state.byId.get(id);
+  if (node?.resource) {
+    document.dispatchEvent(
+      new CustomEvent("hive:open-record", { detail: { id, kind: node.kind } }),
+    );
+    return;
+  }
   if (recenter && node) center(node);
   redraw();
   try {
@@ -353,7 +367,8 @@ async function select(id, recenter = false) {
     $("fact").value = detail.memory.fact;
     $("fact").dataset.revision = detail.memory.revision;
     $("saved").textContent = "";
-    $("source").textContent = `Source ${detail.memory.sourceThreadId} · updated ${detail.memory.updatedAt.slice(0, 10)}`;
+    $("source").textContent =
+      `Source ${detail.memory.sourceThreadId} · updated ${detail.memory.updatedAt.slice(0, 10)}`;
     const items = detail.related.map((item) => {
       const li = document.createElement("li");
       li.textContent = item.title;
@@ -388,7 +403,8 @@ $("save").onclick = async () => {
     $("saved").textContent = "Saved";
     setTimeout(() => state.selected && select(state.selected), 400);
   } catch (error) {
-    $("saved").textContent = error.status === 409 ? "Changed elsewhere — reloaded." : String(error.message);
+    $("saved").textContent =
+      error.status === 409 ? "Changed elsewhere — reloaded." : String(error.message);
     if (error.status === 409) select(state.selected);
   }
 };
@@ -405,7 +421,8 @@ $("forget").onclick = async () => {
 // ---------- search and filters ----------
 function setFilter(name) {
   state.filter = name;
-  for (const button of $("filters").children) button.classList.toggle("on", button.dataset.name === name);
+  for (const button of $("filters").children)
+    button.classList.toggle("on", button.dataset.name === name);
   redraw();
 }
 function renderFilters(data) {
@@ -438,7 +455,22 @@ $("search").addEventListener("input", () => {
       return;
     }
     try {
-      const { memories } = await api("/v1/search", { query });
+      const [facts, resources] = await Promise.all([
+        api("/v1/search", { query }),
+        api("/v1/brain", { query }),
+      ]);
+      if ($("search").value.trim() !== query) return;
+      const memories = [
+        ...facts.memories,
+        ...resources.records
+          .filter((r) => r.kind !== "client")
+          .map((r) => ({
+            id: r.id,
+            subject: r.title,
+            fact: JSON.stringify(r.data),
+            resourceKind: r.kind,
+          })),
+      ];
       state.matches = new Set(memories.map((m) => m.id));
       $("results").replaceChildren(
         ...memories.map((m) => {
@@ -447,7 +479,14 @@ $("search").addEventListener("input", () => {
           const small = document.createElement("small");
           small.textContent = m.fact.slice(0, 90);
           li.append(small);
-          li.onclick = () => select(m.id, true);
+          li.onclick = () =>
+            m.resourceKind
+              ? document.dispatchEvent(
+                  new CustomEvent("hive:open-record", {
+                    detail: { id: m.id, kind: m.resourceKind },
+                  }),
+                )
+              : select(m.id, true);
           return li;
         }),
       );
@@ -471,8 +510,14 @@ async function refresh(force = false) {
   const chips = [
     chip(`${status.records} memories`),
     chip(`${status.skills} skills`),
+    ...(status.continuity?.records
+      ? [chip(`${status.continuity.records} task/reference records`)]
+      : []),
     ...(status.pendingIndex ? [chip(`${status.pendingIndex} indexing`, true)] : []),
-    chip(status.phase === "idle" ? "up to date" : status.phase, status.phase === "syncing" || status.phase === "degraded"),
+    chip(
+      status.phase === "idle" ? "up to date" : status.phase,
+      status.phase === "syncing" || status.phase === "degraded",
+    ),
   ];
   if (status.issues?.length) {
     const issues = chip(`${status.issues.length} issue(s)`, true);
@@ -552,7 +597,8 @@ $("pick-vault").onclick = async () => {
 $("open-vault").onclick = () => window.hive.openVault();
 $("add-skills").onclick = async () => {
   const dir = await window.hive.pickFolder();
-  if (dir) await saveConfig({ ...state.config, skills: [...(state.config.skills ?? []), { path: dir }] });
+  if (dir)
+    await saveConfig({ ...state.config, skills: [...(state.config.skills ?? []), { path: dir }] });
 };
 $("automatic").onchange = () => saveConfig({ ...state.config, automatic: $("automatic").checked });
 $("login").onchange = () => window.hive.loginItem($("login").checked);
@@ -564,7 +610,8 @@ $("import").onclick = async () => {
   $("config-note").textContent = "Importing…";
   try {
     const r = await api("/v1/import", { url: $("h-url").value, bank: $("h-bank").value });
-    $("config-note").textContent = `Imported ${r.created + r.updated} records from ${r.documents} documents.`;
+    $("config-note").textContent =
+      `Imported ${r.created + r.updated} records from ${r.documents} documents.`;
     await refresh(true);
   } catch (error) {
     $("config-note").textContent = String(error.message);
@@ -596,8 +643,29 @@ function painted() {
   } catch (error) {
     window.__hiveReady = { error: String(error.message) };
   }
-  // Light polling; skipped while hidden so a tray-resident window costs nothing.
+  let changePending = false;
+  let refreshing = false;
+  async function committedChange() {
+    changePending = true;
+    if (document.hidden || refreshing) return;
+    refreshing = true;
+    try {
+      while (changePending) {
+        changePending = false;
+        await refresh(true);
+      }
+    } catch (error) {
+      console.warn("Memory refresh failed", error.message);
+    } finally {
+      refreshing = false;
+    }
+  }
+  window.hive.onChanged(committedChange);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && changePending) void committedChange();
+  });
+  // Periodic reconciliation remains a recovery path; committed changes arrive immediately.
   setInterval(() => {
     if (!document.hidden) refresh().catch(() => {});
-  }, 5000);
+  }, 30000);
 })();

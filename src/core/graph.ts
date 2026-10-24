@@ -4,7 +4,11 @@ import { hiveHubName } from "./vault.ts";
 
 /** Everything the graph view draws: memories, one hub per project, and related/hub edges. */
 export async function hiveGraph(file: string) {
-  const { memories } = await readHiveMind(file);
+  const { memories, continuity } = await readHiveMind(file);
+  const resources = (continuity?.records ?? []).filter(
+    (r) => !["client", "episode", "relation"].includes(r.kind),
+  );
+  const resourceIds = new Set(resources.map((r) => r.id));
   const related = await relatedHiveMemories(file, memories);
   const edges: Array<{ source: string; target: string; type: "hub" | "related" }> = [];
   const seen = new Set<string>();
@@ -21,16 +25,51 @@ export async function hiveGraph(file: string) {
     hubs.add(hub);
     edges.push({ source: memory.id, target: `hub:${hub}`, type: "hub" });
   }
+  for (const record of resources) {
+    const hub = record.project ?? "General memories";
+    hubs.add(hub);
+    edges.push({ source: record.id, target: `hub:${hub}`, type: "hub" });
+    const references = [
+      ...(Array.isArray(record.data.assetIds) ? record.data.assetIds : []),
+      ...(Array.isArray(record.data.referenceIds) ? record.data.referenceIds : []),
+      ...(record.data.taskId ? [record.data.taskId] : []),
+    ];
+    for (const id of references)
+      if (typeof id === "string" && resourceIds.has(id))
+        edges.push({ source: record.id, target: id, type: "related" });
+  }
+  for (const relation of continuity?.records ?? [])
+    if (
+      relation.kind === "relation" &&
+      typeof relation.data.from === "string" &&
+      typeof relation.data.to === "string" &&
+      resourceIds.has(relation.data.from) &&
+      resourceIds.has(relation.data.to)
+    )
+      edges.push({ source: relation.data.from, target: relation.data.to, type: "related" });
   return {
-    nodes: memories.map((memory) => ({
-      id: memory.id,
-      title: memory.subject,
-      project: memory.project,
-      scope: memory.scope,
-      kind: memory.kind ?? "memory",
-      preview: memory.fact.slice(0, 200),
-      updatedAt: memory.updatedAt,
-    })),
+    memoryRecords: memories.length,
+    nodes: [
+      ...memories.map((memory) => ({
+        id: memory.id,
+        title: memory.subject,
+        project: memory.project,
+        scope: memory.scope,
+        kind: memory.kind ?? "memory",
+        preview: memory.fact.slice(0, 200),
+        updatedAt: memory.updatedAt,
+      })),
+      ...resources.map((r) => ({
+        id: r.id,
+        title: r.title,
+        project: r.project,
+        scope: r.scope,
+        kind: r.kind,
+        resource: true,
+        preview: JSON.stringify(r.data).slice(0, 200),
+        updatedAt: r.updatedAt,
+      })),
+    ],
     hubs: [...hubs].map((name) => ({ id: `hub:${name}`, title: name })),
     edges,
   };

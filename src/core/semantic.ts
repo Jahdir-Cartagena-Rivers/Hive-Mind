@@ -21,9 +21,16 @@ const Vectors = Schema.Struct({
 const decodeVectors = Schema.decodeUnknownSync(Vectors);
 
 const paths = (file: string) => ({
-  vectors: NodePath.join(NodePath.dirname(file), "hive-mind.vectors.json"),
+  vectors: NodePath.join(
+    NodePath.dirname(file),
+    NodePath.basename(file) === "continuity.json"
+      ? "hive-mind.continuity.vectors.json"
+      : "hive-mind.vectors.json",
+  ),
   models: NodePath.join(NodePath.dirname(file), "hive-mind-models"),
 });
+export const continuityIndexFile = (file: string) =>
+  NodePath.join(NodePath.dirname(file), "continuity.json");
 
 const memoryText = (memory: HiveMemory) => `${memory.subject}\n${memory.fact}`.slice(0, 2_000);
 const encode = (vector: Float32Array) => Buffer.from(vector.buffer).toString("base64");
@@ -33,7 +40,7 @@ const decode = (text: string) => {
 };
 
 async function readVectors(file: string) {
-  const text = await readOptional(paths(file).vectors);
+  const text = await readOptional(paths(file).vectors, 32_000_000);
   const stored = text === null ? undefined : decodeVectors(JSON.parse(text));
   // Vectors from a different model are meaningless; start over.
   return {

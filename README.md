@@ -2,6 +2,12 @@
 
 **Shared memory for AI agents that you can inspect, correct, and extend.**
 
+Durable tasks, scoped preferences, visual reference collections, retained model
+and document files, artifact history, and resumable change notifications extend
+the fact store. Connected agents can assemble current working context before a
+turn and retrieve original reference bytes. See the [desktop guide](docs/desktop.md)
+and [service contract](docs/service.md) for the available workflows and limits.
+
 Hive Mind brings durable memory, semantic retrieval, an Obsidian-compatible vault,
 and a skills catalog into one system. This repository contains the standalone
 core and an authenticated local HTTP service. It uses explicit state directories,

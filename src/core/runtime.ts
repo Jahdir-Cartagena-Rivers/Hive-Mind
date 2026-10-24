@@ -9,11 +9,10 @@ import {
   forgetHiveMind,
   hiveMindStatus,
   notifyHiveMindChange,
-  onHiveMindChange,
   rememberHiveMind,
   syncHiveMind,
 } from "./engine.ts";
-import { editHiveFact } from "./store.ts";
+import { editHiveFact, subscribeHiveChanges } from "./store.ts";
 
 /** The environment owns one worker. Saves stay local; projection receipts survive restarts. */
 export class HiveMindRuntime {
@@ -26,10 +25,24 @@ export class HiveMindRuntime {
   private lastSync: string | null = null;
   private unsubscribe: () => void;
   private readonly beforeSync: (() => Promise<void>) | undefined;
+  private readonly statusListeners = new Set<() => void>();
+  onStatusChange(listener: () => void) {
+    this.statusListeners.add(listener);
+    return () => this.statusListeners.delete(listener);
+  }
+  private changed() {
+    for (const listener of this.statusListeners) {
+      try {
+        listener();
+      } catch {
+        /* Observers cannot affect synchronization. */
+      }
+    }
+  }
   constructor(file: string, beforeSync?: () => Promise<void>) {
     this.file = file;
     this.beforeSync = beforeSync;
-    this.unsubscribe = onHiveMindChange(file, () => {
+    this.unsubscribe = subscribeHiveChanges(file, () => {
       void this.automatic();
     });
   }
@@ -86,6 +99,7 @@ export class HiveMindRuntime {
     } catch (error) {
       this.phase = "degraded";
       this.issues = [String(error)];
+      this.changed();
     }
   }
   requestSync() {
@@ -95,7 +109,9 @@ export class HiveMindRuntime {
     this.phase = "syncing";
     this.running = this.drain().finally(() => {
       this.running = undefined;
+      if (this.requested && !this.closed) this.requestSync();
     });
+    this.changed();
   }
   private async drain() {
     try {
@@ -111,6 +127,7 @@ export class HiveMindRuntime {
         this.issues = [...recoveryIssues, ...report.issues];
         this.lastSync = new Date().toISOString();
         this.phase = this.issues.length ? "degraded" : "idle";
+        this.changed();
         if (report.status.pendingIndex > 0 && this.issues.length === 0) {
           this.requested = true;
           this.phase = "syncing";
@@ -119,11 +136,12 @@ export class HiveMindRuntime {
     } catch (error) {
       this.phase = "degraded";
       this.issues = [String(error)];
+      this.changed();
     }
   }
   async waitIdle() {
     await this.automatic();
-    await this.running;
+    while (this.running) await this.running;
   }
   async close() {
     this.closed = true;

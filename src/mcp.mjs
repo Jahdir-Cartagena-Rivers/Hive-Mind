@@ -6,6 +6,85 @@ const scope = { type: "string", enum: ["general", "project"] };
 
 export const tools = [
   {
+    name: "hive_mind_file",
+    description:
+      "Explicitly retain an opaque model, document or source file (base64, filename, title, scope/project) or read retained bytes as an embedded MCP resource. Files are stored without executing them. Link the resulting asset ID to an artifact revision.",
+    inputSchema: object(
+      {
+        action: { type: "string", enum: ["read", "import"] },
+        id: text,
+        base64: text,
+        filename: text,
+        title: text,
+        scope,
+        project: text,
+        source: { type: "object" },
+        eventId: text,
+      },
+      ["action"],
+    ),
+    write: true,
+  },
+  {
+    name: "hive_mind_working_context",
+    description:
+      "Get bounded current task state, scoped preferences, references, recent evidence and image IDs before a turn. Read returned images with hive_mind_image. taskId explicitly continues an existing task across project surfaces.",
+    inputSchema: object({
+      query: text,
+      projects: { type: "array", items: text },
+      taskId: text,
+      maxChars: { type: "integer", minimum: 1000, maximum: 24000 },
+    }),
+    write: false,
+  },
+  {
+    name: "hive_mind_record",
+    description:
+      "List/save/forget continuity records or claim/release a task. Kinds: task, preference, collection, artifact, episode, entity, relation, client. Save full data with current revision when editing; eventId makes retries idempotent. Record source truthfully; agent findings are evidence, never user preferences by inference. Task data: objective,status,decisions,failures,questions,nextSteps. Preference: statement,polarity,context,exceptions,assetIds. Collection: assetIds,annotations[{assetId,note,region?:{x,y,width,height}}]. Artifact: description,assetIds,taskId,preferredRevision. Episode: summary,eventId,taskId. Client: consumedSequence,usedIds. List includeHistory to inspect artifact versions. Claim uses id,revision,owner,seconds,release.",
+    inputSchema: object(
+      {
+        action: { type: "string", enum: ["list", "save", "forget", "claim"] },
+        id: text,
+        revision: text,
+        kind: text,
+        scope,
+        project: text,
+        title: text,
+        source: { type: "object" },
+        data: { type: "object" },
+        eventId: text,
+        projects: { type: "array", items: text },
+        query: text,
+        includeHistory: { type: "boolean" },
+        owner: text,
+        seconds: { type: "integer" },
+        release: { type: "boolean" },
+      },
+      ["action"],
+    ),
+    write: true,
+  },
+  {
+    name: "hive_mind_image",
+    description:
+      "Read an actual retained image by asset id (returns MCP image content), or explicitly import base64 PNG/JPEG/WebP/GIF bytes with title, scope, project and truthful source. Never claim a path alone preserves an image.",
+    inputSchema: object(
+      {
+        action: { type: "string", enum: ["read", "import"] },
+        id: text,
+        base64: text,
+        title: text,
+        caption: text,
+        scope,
+        project: text,
+        source: { type: "object" },
+        eventId: text,
+      },
+      ["action"],
+    ),
+    write: true,
+  },
+  {
     name: "hive_mind_recall",
     description:
       "Search the shared Hive Mind across providers and projects. Use when a person, project, concept, preference, or past decision may have been explained in another chat. Project is an optional ranking hint; cross-project matches remain available.",
@@ -16,7 +95,7 @@ export const tools = [
     name: "hive_mind_remember",
     description:
       "Save or correct one durable, user-supported fact in the shared Hive Mind. Use the same subject to replace an outdated fact. General memories cover the user or concepts used across projects; project memories require a project name. Never infer private details or store credentials. Ask the user before saving a sensitive personal fact.",
-    inputSchema: object({ scope, project: text, subject: text, fact: text }, [
+    inputSchema: object({ scope, project: text, subject: text, fact: text, sourceThreadId: text }, [
       "scope",
       "subject",
       "fact",
@@ -60,7 +139,7 @@ export async function handleMcp(message, { call, canWrite }) {
       return reply({
         protocolVersion: PROTOCOL,
         capabilities: { tools: {} },
-        serverInfo: { name: "Hive Mind", version: "0.1.0" },
+        serverInfo: { name: "Hive Mind", version: "0.2.0" },
       });
     case "ping":
       return reply({});
@@ -70,19 +149,27 @@ export async function handleMcp(message, { call, canWrite }) {
           name,
           description,
           inputSchema,
-          annotations: { readOnlyHint: !write, destructiveHint: name === "hive_mind_forget" },
+          annotations: {
+            readOnlyHint: !write,
+            destructiveHint: name === "hive_mind_forget" || name === "hive_mind_record",
+          },
         })),
       });
     case "tools/call": {
       const tool = tools.find((entry) => entry.name === message.params?.name);
       if (!tool) return fail(-32602, "Unknown tool.");
-      if (tool.write && !canWrite)
+      const actionRead =
+        (tool.name === "hive_mind_record" && message.params?.arguments?.action === "list") ||
+        (["hive_mind_image", "hive_mind_file"].includes(tool.name) &&
+          message.params?.arguments?.action === "read");
+      if (tool.write && !canWrite && !actionRead)
         return reply({
           isError: true,
           content: [{ type: "text", text: "This token has read-only access." }],
         });
       try {
         const result = await call(tool.name, message.params?.arguments ?? {});
+        if (result?.mcpContent) return reply({ content: result.mcpContent });
         return reply({ content: [{ type: "text", text: JSON.stringify(result) }] });
       } catch (error) {
         return reply({

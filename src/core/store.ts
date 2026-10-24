@@ -4,6 +4,7 @@ import * as NodeFSP from "node:fs/promises";
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 import { renameReplacing } from "./files.ts";
+import { commitChanges, validContinuity, type HiveContinuity } from "./continuity.ts";
 
 export interface HiveMemory {
   readonly id: string;
@@ -32,10 +33,11 @@ export interface HiveImportResult {
   readonly protected: number;
 }
 
-interface HiveFile {
+export interface HiveFile {
   readonly version: 1;
   readonly memories: ReadonlyArray<HiveMemory>;
   readonly forgotten?: ReadonlyArray<string>;
+  readonly continuity?: HiveContinuity;
 }
 
 const empty: HiveFile = { version: 1, memories: [] };
@@ -184,6 +186,8 @@ function parseHiveMind(contents: string): HiveFile {
     (parsed as Record<string, unknown>).version !== 1 ||
     !Array.isArray((parsed as Record<string, unknown>).memories) ||
     !(parsed as { memories: unknown[] }).memories.every(validMemory) ||
+    ((parsed as HiveFile).continuity !== undefined &&
+      !validContinuity((parsed as HiveFile).continuity)) ||
     ((parsed as HiveFile).forgotten !== undefined &&
       (!Array.isArray((parsed as HiveFile).forgotten) ||
         !(parsed as HiveFile).forgotten?.every((value) => typeof value === "string")))
@@ -231,17 +235,26 @@ async function writeHiveMind(filePath: string, data: HiveFile): Promise<void> {
   }
 }
 
-function mutate<T>(
+export function mutateHiveStore<T>(
   filePath: string,
-  change: (data: HiveFile) => readonly [HiveFile, T],
+  change: (data: HiveFile) => readonly [HiveFile, T] | Promise<readonly [HiveFile, T]>,
 ): Promise<T> {
   const previous = writes.get(filePath) ?? Promise.resolve();
   const operation = previous
     .catch(() => undefined)
     .then(async () => {
       const current = await readHiveMind(filePath);
-      const [next, result] = change(current);
-      if (next !== current) await writeHiveMind(filePath, next);
+      const [next, result] = await change(current);
+      if (next !== current) {
+        await writeHiveMind(filePath, commitChanges(current, next));
+        for (const listener of changeListeners.get(NodePath.resolve(filePath)) ?? []) {
+          try {
+            listener();
+          } catch {
+            /* A subscriber cannot undo a committed save. */
+          }
+        }
+      }
       return result;
     });
   writes.set(filePath, operation);
@@ -251,6 +264,19 @@ function mutate<T>(
     })
     .catch(() => undefined);
   return operation;
+}
+
+const mutate = mutateHiveStore;
+const changeListeners = new Map<string, Set<() => void>>();
+export function subscribeHiveChanges(file: string, listener: () => void) {
+  const key = NodePath.resolve(file);
+  const listeners = changeListeners.get(key) ?? new Set<() => void>();
+  listeners.add(listener);
+  changeListeners.set(key, listeners);
+  return () => {
+    listeners.delete(listener);
+    if (!listeners.size) changeListeners.delete(key);
+  };
 }
 
 export function rememberHiveFact(filePath: string, input: HiveImportFact): Promise<HiveMemory> {

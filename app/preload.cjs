@@ -8,4 +8,14 @@ contextBridge.exposeInMainWorld("hive", {
   connection: () => ipcRenderer.invoke("hive:connection"),
   copyToken: () => ipcRenderer.invoke("hive:copy-token"),
   loginItem: (enabled) => ipcRenderer.invoke("hive:login-item", enabled),
+  importImage: (metadata) => ipcRenderer.invoke("hive:import-image", metadata),
+  importFile: (metadata) => ipcRenderer.invoke("hive:import-file", metadata),
+  saveReference: (id) => ipcRenderer.invoke("hive:save-reference", id),
+  assetData: (id) => ipcRenderer.invoke("hive:asset-data", id),
+  archive: (action) => ipcRenderer.invoke("hive:archive", action),
+  onChanged: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on("hive:changed", listener);
+    return () => ipcRenderer.removeListener("hive:changed", listener);
+  },
 });

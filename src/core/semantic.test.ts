@@ -6,6 +6,9 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 import { vi } from "vite-plus/test";
 import { hivePaths } from "./config.ts";
 import { hiveNotePath } from "./vault.ts";
+import { mutateHiveStore, readHiveMind } from "./store.ts";
+import { newContinuity, continuityMemories, type BrainRecord } from "./continuity.ts";
+import { semanticRecall, continuityIndexFile } from "./semantic.ts";
 import {
   forgetHiveMind,
   hiveMindStatus,
@@ -34,6 +37,67 @@ vi.mock("./embedder.ts", () => {
 });
 
 const directories: string[] = [];
+it("indexes continuity separately, rejects stale preference vectors, and preserves ordinary fact recall", async () => {
+  const file = await fixture();
+  await rememberHiveMind(file, memory("Garage", "A car is stored here"));
+  const record: BrainRecord = {
+    id: "visual-preference",
+    kind: "preference",
+    scope: "general",
+    project: null,
+    title: "Design preference",
+    source: { threadId: "test", provider: "test", type: "user" },
+    data: { statement: "automobile", polarity: "like", context: "modeling" },
+    revision: "r1",
+    createdAt: "2026-10-23T00:00:00.000Z",
+    updatedAt: "2026-10-23T00:00:00.000Z",
+    history: [],
+  };
+  await mutateHiveStore(file, (store) => [
+    { ...store, continuity: { ...newContinuity(), records: [record] } },
+    undefined,
+  ]);
+  await syncHiveMind(file);
+  const candidates = continuityMemories((await readHiveMind(file)).continuity?.records ?? []);
+  expect((await semanticRecall(continuityIndexFile(file), "vehicle", candidates))?.[0]?.id).toBe(
+    record.id,
+  );
+  await mutateHiveStore(file, (store) => [
+    {
+      ...store,
+      continuity: {
+        ...store.continuity!,
+        records: [
+          {
+            ...record,
+            data: { ...record.data, statement: "night" },
+            revision: "r2",
+            updatedAt: "2026-10-23T01:00:00.000Z",
+          },
+        ],
+      },
+    },
+    undefined,
+  ]);
+  expect(
+    await semanticRecall(
+      continuityIndexFile(file),
+      "vehicle",
+      continuityMemories((await readHiveMind(file)).continuity?.records ?? []),
+    ),
+  ).toEqual([]);
+  expect((await recallHiveMind(file, "automobile")).memories[0]?.subject).toBe("Garage");
+  await syncHiveMind(file);
+  expect(
+    (
+      await semanticRecall(
+        continuityIndexFile(file),
+        "dark",
+        continuityMemories((await readHiveMind(file)).continuity?.records ?? []),
+      )
+    )?.[0]?.id,
+  ).toBe(record.id);
+});
 afterEach(async () => {
   await Promise.all(
     directories

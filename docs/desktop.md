@@ -28,6 +28,33 @@ directory. Quit from the tray menu.
   open them), add skills folders, toggle automatic sync and start-with-Windows, and
   import original documents from a Hindsight bank (read-only).
 
+## Tasks, preferences and visual references
+
+Use **Tasks and references** to keep objectives, decisions, failed attempts, open
+questions and next actions outside an individual chat. Tasks can be claimed and
+released so concurrent chats can see who is working on them. Preferences include
+their context and exceptions; user-entered preferences remain distinct from agent
+notes. Collections group images with notes and optional normalized regions.
+
+Retain images or model/document/source files under **Images and files**, then
+link them to collections, preferences, tasks or artifact versions. Retained bytes
+survive removal of the original file. **Save a copy** retrieves the original;
+**Back up** includes retained bytes and metadata. Restore requires an empty
+environment and preserves existing nonempty environments by rejecting the import.
+Images are limited to 10 MiB, other files to 25 MiB, and backups to 64 MiB.
+
+**Find similar images** compares coarse appearance descriptors for images imported
+through the desktop; other clients can supply compatible descriptors. This is
+layout/tone matching, not a general visual understanding model. Text/meaning
+search and actual image retrieval complement it. An upload or similar-looking
+image does not establish that you like it; record your preference explicitly.
+
+Artifact history separates the latest version from a preferred earlier version.
+The graph links these records to their references and related task. Search covers
+both ordinary memories and continuity records. Changes and completed index passes
+refresh the interface through notifications; periodic reconciliation remains as
+recovery.
+
 ## Semantic index
 
 Each memory is embedded locally with `bge-small-en-v1.5` (about 3 ms per memory, CPU
@@ -43,12 +70,21 @@ Applications that find this file can use:
 
 - **MCP** at `http://127.0.0.1:8788/mcp` with `Authorization: Bearer <token>`. Tools:
   `hive_mind_recall`, `hive_mind_remember`, `hive_mind_forget`, `hive_mind_status`,
-  `hive_mind_sync`.
+  `hive_mind_sync`, `hive_mind_record`, `hive_mind_working_context`,
+  `hive_mind_image` and `hive_mind_file`. Image reads return actual MCP image
+  content; file reads return an embedded resource with retained bytes.
 - **HTTP** operations listed in [service.md](service.md), plus `POST /v1/graph`,
   `POST /v1/memory`, and `POST /v1/context` (prompt-ready background notes).
 
 Settings has a "Copy token" button that clears the clipboard after 30 seconds.
 Provide the token to clients through their credential storage, never a URL.
+
+J1 uses its built-in store by default. To use this service as its primary brain,
+select **Standalone Hive Mind** in J1's **Settings → Hive Mind** and save setup.
+The connection file belongs to the J1 server host, including when you use J1 from
+a phone or remote browser. Switching modes does not copy or merge stores; J1
+preserves the built-in store and connection settings for switching back. External
+outages are reported without silently writing into built-in memory.
 
 ## Migrating from J1 Code's built-in Hive Mind
 

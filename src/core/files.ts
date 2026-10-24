@@ -3,11 +3,11 @@ import * as NodeCrypto from "node:crypto";
 import * as NodeFSP from "node:fs/promises";
 import * as NodePath from "node:path";
 
-export async function readOptional(file: string) {
+export async function readOptional(file: string, maxBytes = 4_000_000) {
   try {
     const stat = await NodeFSP.lstat(file);
-    if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 4_000_000)
-      throw new Error("Hive Mind projection must be a regular file under 4 MB.");
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.size > maxBytes)
+      throw new Error(`Hive Mind projection must be a regular file under ${maxBytes} bytes.`);
     return await NodeFSP.readFile(file, "utf8");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;

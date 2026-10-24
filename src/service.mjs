@@ -15,13 +15,47 @@ import { HiveMindRuntime } from "./core/runtime.ts";
 import { forgetHiveMind, hiveMindStatus, recallHiveMind, rememberHiveMind } from "./core/engine.ts";
 import { hiveGraph, hiveMemoryDetail } from "./core/graph.ts";
 import { handleMcp } from "./mcp.mjs";
-import { readHiveMind, hiveContext, hiveMemoryDigest, editHiveFact } from "./core/store.ts";
+import {
+  readHiveMind,
+  hiveContext,
+  hiveMemoryDigest,
+  editHiveFact,
+  subscribeHiveChanges,
+  mutateHiveStore,
+} from "./core/store.ts";
+import { newContinuity } from "./core/continuity.ts";
+import {
+  BrainError,
+  brainSnapshot,
+  saveBrainRecord,
+  forgetBrainRecord,
+  claimBrainTask,
+  brainChanges,
+  brainContext,
+  importBrainAsset,
+  importBrainFile,
+  visualBrainSearch,
+  readBrainAsset,
+  exportBrain,
+  restoreBrain,
+} from "./brain.mjs";
 import { importHiveHindsight } from "./core/importHindsight.ts";
 import { HiveLocalEngine } from "./core/localEngine.ts";
 import { readHiveConfig } from "./core/config.ts";
+import { ownStateDirectory } from "./ownership.mjs";
 
 const MAX_BODY = 64 * 1024;
-const readOperations = new Set(["/v1/search", "/v1/graph", "/v1/memory", "/v1/context"]);
+const readOperations = new Set([
+  "/v1/search",
+  "/v1/graph",
+  "/v1/memory",
+  "/v1/context",
+  "/v1/brain",
+  "/v1/changes",
+  "/v1/working-context",
+  "/v1/archive/export",
+  "/v1/visual-search",
+]);
 class RequestError extends Error {
   constructor(status, message) {
     super(message);
@@ -36,6 +70,21 @@ const decode = (schema, input) => {
   } catch {
     throw new RequestError(400, "Invalid request fields.");
   }
+};
+
+const decodeRemember = (body) => {
+  if (
+    body.sourceThreadId !== undefined &&
+    (typeof body.sourceThreadId !== "string" || !/^[\w:.-]{1,128}$/u.test(body.sourceThreadId))
+  )
+    throw new RequestError(400, "Invalid source thread identity.");
+  const input = decode(HiveMindMutation, { ...body, action: "remember" });
+  if (input.scope === "project" && !input.project?.trim())
+    throw new RequestError(
+      400,
+      "A project name is required for project memories. Retry with project set to the intended project name.",
+    );
+  return input;
 };
 
 export async function validateStateDirectory(directory) {
@@ -85,18 +134,21 @@ export async function validateStateDirectory(directory) {
   return resolved;
 }
 
-async function readBody(request) {
+async function readBody(request, limit = MAX_BODY) {
   if (request.headers["content-type"]?.split(";")[0].trim().toLowerCase() !== "application/json")
     throw new RequestError(415, "Use application/json.");
   const chunks = [];
   let size = 0;
   for await (const chunk of request) {
     size += chunk.length;
-    if (size > MAX_BODY) throw new RequestError(413, "Request body is too large.");
+    if (size > limit) throw new RequestError(413, "Request body is too large.");
     chunks.push(chunk);
   }
   try {
-    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    if (typeof body !== "object" || body === null || Array.isArray(body))
+      throw new Error("Expected object.");
+    return body;
   } catch {
     throw new RequestError(400, "Malformed JSON.");
   }
@@ -121,11 +173,23 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
   const file = path.join(directory, "hive-mind.json");
   await readHiveMind(file);
   await readHiveConfig(file);
+  const releaseOwnership = await ownStateDirectory(directory);
+  try {
+    await mutateHiveStore(file, (store) =>
+      store.continuity
+        ? [store, undefined]
+        : [{ ...store, continuity: newContinuity() }, undefined],
+    );
+  } catch (error) {
+    await releaseOwnership();
+    throw error;
+  }
   const engine = new HiveLocalEngine(path.join(directory, "logs"), {
     platform: process.platform,
     environment: process.env,
   });
   const runtime = new HiveMindRuntime(file, async () => engine.ensure(await readHiveConfig(file)));
+  const streams = new Set();
   const respond = (response, status, result) => {
     response.writeHead(status, {
       "content-type": "application/json; charset=utf-8",
@@ -150,8 +214,94 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
           ? "read"
           : null;
       if (!access) throw new RequestError(401, "A valid bearer token is required.");
+      if (request.method === "GET" && url.pathname.startsWith("/v1/assets/")) {
+        const { record, bytes } = await readBrainAsset(
+          file,
+          url.pathname.slice("/v1/assets/".length),
+        );
+        response.writeHead(200, {
+          "content-type": record.data.mime,
+          "content-length": bytes.length,
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          ...(record.data.media === "file"
+            ? {
+                "content-disposition": "attachment",
+                "x-hive-filename": encodeURIComponent(record.data.filename),
+              }
+            : {}),
+        });
+        response.end(bytes);
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/v1/events") {
+        const head = await brainChanges(file);
+        const lastId = request.headers["last-event-id"];
+        const parts = typeof lastId === "string" ? lastId.split(":") : [];
+        if (parts.length > 2) throw new RequestError(400, "Invalid change cursor.");
+        let cursor = lastId === undefined ? head.sequence : Number(parts.at(-1));
+        const initial = await brainChanges(file, cursor, parts.length === 2 ? parts[0] : undefined);
+        response.writeHead(200, {
+          "content-type": "text/event-stream",
+          "cache-control": "no-store",
+          connection: "keep-alive",
+          "x-accel-buffering": "no",
+        });
+        response.write(
+          `event: ready\ndata: ${JSON.stringify({ streamId: initial.streamId, sequence: initial.sequence })}\n\n`,
+        );
+        let running = false;
+        let dirty = true;
+        const pump = async () => {
+          dirty = true;
+          if (running) return;
+          running = true;
+          try {
+            while (dirty && !response.destroyed) {
+              dirty = false;
+              const changes = await brainChanges(file, cursor, initial.streamId);
+              for (const event of changes.events) {
+                cursor = event.sequence;
+                if (
+                  !response.write(
+                    `id: ${initial.streamId}:${event.sequence}\nevent: change\ndata: ${JSON.stringify(event)}\n\n`,
+                  )
+                ) {
+                  response.end();
+                  return; // Reconnect replays committed changes from the client's last ID.
+                }
+              }
+            }
+          } catch {
+            response.end();
+          } finally {
+            running = false;
+          }
+        };
+        const unsubscribe = subscribeHiveChanges(file, () => {
+          void pump();
+        });
+        const heartbeat = setInterval(() => {
+          if (!response.write(": heartbeat\n\n")) response.end();
+        }, 15000);
+        heartbeat.unref();
+        streams.add(response);
+        response.on("close", () => {
+          clearInterval(heartbeat);
+          unsubscribe();
+          streams.delete(response);
+        });
+        await pump();
+        return;
+      }
       if (request.method === "GET" && url.pathname === "/v1/status")
-        return respond(response, 200, await runtime.snapshot());
+        return respond(response, 200, {
+          ...(await runtime.snapshot()),
+          continuity: {
+            sequence: (await brainChanges(file)).sequence,
+            records: (await readHiveMind(file)).continuity?.records.length ?? 0,
+          },
+        });
       if (request.method !== "POST") throw new RequestError(404, "Unknown operation.");
       if (url.pathname === "/mcp") {
         const message = await readBody(request);
@@ -159,17 +309,73 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
           canWrite: access === "write",
           call: async (name, args) => {
             switch (name) {
+              case "hive_mind_working_context":
+                return brainContext(file, args);
+              case "hive_mind_record": {
+                const { action, ...input } = args;
+                if (action === "list") return brainSnapshot(file, input);
+                if (action === "save") return saveBrainRecord(file, input);
+                if (action === "forget") return forgetBrainRecord(file, input);
+                if (action === "claim") return claimBrainTask(file, input);
+                throw new RequestError(400, "Unknown record action.");
+              }
+              case "hive_mind_image": {
+                if (args.action === "import") {
+                  const { action, ...input } = args;
+                  return importBrainAsset(file, input);
+                }
+                if (args.action !== "read") throw new RequestError(400, "Unknown image action.");
+                const { record, bytes } = await readBrainAsset(file, args.id);
+                if (record.data.media === "file")
+                  throw new RequestError(
+                    400,
+                    "Use hive_mind_file to read an opaque reference file.",
+                  );
+                return {
+                  mcpContent: [
+                    { type: "image", data: bytes.toString("base64"), mimeType: record.data.mime },
+                    {
+                      type: "text",
+                      text: JSON.stringify({
+                        id: record.id,
+                        title: record.title,
+                        source: record.source,
+                      }),
+                    },
+                  ],
+                };
+              }
+              case "hive_mind_file": {
+                if (args.action === "import") {
+                  const { action, ...input } = args;
+                  return importBrainFile(file, input);
+                }
+                if (args.action !== "read") throw new RequestError(400, "Unknown file action.");
+                const { record, bytes } = await readBrainAsset(file, args.id);
+                return {
+                  mcpContent: [
+                    {
+                      type: "resource",
+                      resource: {
+                        uri: `hive-mind://assets/${record.id}`,
+                        mimeType: record.data.mime,
+                        blob: bytes.toString("base64"),
+                      },
+                    },
+                  ],
+                };
+              }
               case "hive_mind_recall": {
                 const input = decode(HiveMindSearchInput, args);
                 return recallHiveMind(file, input.query, input.project);
               }
               case "hive_mind_remember": {
-                const input = decode(HiveMindMutation, { ...args, action: "remember" });
+                const input = decodeRemember(args);
                 return {
                   memory: await rememberHiveMind(file, {
                     ...input,
                     project: input.project ?? null,
-                    sourceThreadId: "hive-mind-mcp",
+                    sourceThreadId: args.sourceThreadId ?? "hive-mind-mcp",
                   }),
                 };
               }
@@ -203,13 +409,67 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
         "/v1/configure",
         "/v1/sync",
         "/v1/import",
+        "/v1/brain",
+        "/v1/brain/save",
+        "/v1/brain/forget",
+        "/v1/tasks/claim",
+        "/v1/changes",
+        "/v1/working-context",
+        "/v1/assets",
+        "/v1/archive/export",
+        "/v1/archive/import",
+        "/v1/files",
+        "/v1/visual-search",
       ]);
       if (!operations.has(url.pathname)) throw new RequestError(404, "Unknown operation.");
       if (access !== "write" && !readOperations.has(url.pathname))
         throw new RequestError(403, "This token has read-only access.");
-      const body = await readBody(request);
+      const body = await readBody(
+        request,
+        url.pathname === "/v1/assets"
+          ? 14 * 1024 * 1024 + 4096
+          : url.pathname === "/v1/files"
+            ? 35 * 1024 * 1024 + 4096
+            : url.pathname === "/v1/archive/import"
+              ? 64 * 1024 * 1024
+              : MAX_BODY,
+      );
       let result;
       switch (url.pathname) {
+        case "/v1/brain":
+          result = await brainSnapshot(file, body);
+          break;
+        case "/v1/brain/save":
+          result = await saveBrainRecord(file, body);
+          break;
+        case "/v1/brain/forget":
+          result = await forgetBrainRecord(file, body);
+          break;
+        case "/v1/tasks/claim":
+          result = await claimBrainTask(file, body);
+          break;
+        case "/v1/changes":
+          result = await brainChanges(file, body.after, body.streamId);
+          break;
+        case "/v1/working-context":
+          result = await brainContext(file, body);
+          break;
+        case "/v1/assets":
+          result = await importBrainAsset(file, body);
+          break;
+        case "/v1/files":
+          result = await importBrainFile(file, body);
+          break;
+        case "/v1/visual-search":
+          result = await visualBrainSearch(file, body);
+          break;
+        case "/v1/archive/export":
+          result = await exportBrain(file);
+          break;
+        case "/v1/archive/import":
+          result = await restoreBrain(file, body);
+          runtime.requestSync();
+          break;
         case "/v1/graph":
           result = await hiveGraph(file);
           break;
@@ -238,13 +498,14 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
           break;
         }
         case "/v1/remember": {
-          const input = decode(HiveMindMutation, { ...body, action: "remember" });
+          const input = decodeRemember(body);
           const memory = await rememberHiveMind(file, {
             ...input,
             project: input.project ?? null,
             // Connected apps may name the chat a memory came from, for provenance.
             sourceThreadId:
-              typeof body.sourceThreadId === "string" && /^[\w:.-]{1,128}$/u.test(body.sourceThreadId)
+              typeof body.sourceThreadId === "string" &&
+              /^[\w:.-]{1,128}$/u.test(body.sourceThreadId)
                 ? body.sourceThreadId
                 : "hive-mind-api",
           });
@@ -288,11 +549,12 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
       }
       respond(response, 200, result);
     } catch (error) {
-      const status = error instanceof RequestError ? error.status : 400;
+      const status =
+        error instanceof RequestError || error instanceof BrainError ? error.status : 400;
       if (!response.headersSent && !response.destroyed)
         respond(response, status, {
           error:
-            error instanceof RequestError
+            error instanceof RequestError || error instanceof BrainError
               ? error.message
               : "Operation failed; existing records are preserved.",
         });
@@ -306,6 +568,7 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
     await runtime.automatic();
   } catch (error) {
     await runtime.close();
+    await releaseOwnership();
     throw error;
   }
   const timer = setInterval(() => {
@@ -316,15 +579,18 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
   return {
     origin: `http://127.0.0.1:${server.address().port}`,
     stateDirectory: directory,
+    onStatusChange: (listener) => runtime.onStatusChange(listener),
     close() {
       return (closing ??= (async () => {
         clearInterval(timer);
+        for (const stream of streams) stream.end();
         const stopped = new Promise((resolve, reject) =>
           server.close((error) => (error ? reject(error) : resolve())),
         );
         server.closeIdleConnections();
         await stopped;
         await runtime.close();
+        await releaseOwnership();
       })());
     },
   };

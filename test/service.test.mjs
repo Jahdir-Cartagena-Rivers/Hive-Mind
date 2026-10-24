@@ -167,9 +167,11 @@ test("graph, detail and context endpoints serve read tokens; MCP honors token pe
   assert.equal(graph.edges.filter((edge) => edge.type === "hub").length, 2);
 
   const traced = (await f.request("/v1/remember", { ...fact, subject: "Traced", sourceThreadId: "chat:42" })).value.memory;
+  assert.equal(traced.sourceThreadId, "chat:42");
   const untraced = await f.request("/v1/remember", { ...fact, subject: "Untraced", sourceThreadId: "bad id!" });
-  assert.equal(untraced.value.memory?.sourceThreadId, "hive-mind-api", JSON.stringify(untraced));
-  assert.equal((await f.request("/v1/remember", { ...fact, subject: "Untraced", sourceThreadId: "bad id!" })).value.memory.sourceThreadId, "hive-mind-api");
+  assert.equal(untraced.status, 400);
+  assert.match(untraced.value.error, /source thread identity/u);
+  assert.equal((await f.request("/v1/graph", {}, f.readToken)).value.nodes.length, 3);
 
   const detail = (await f.request("/v1/memory", { id: saved.id }, f.readToken)).value;
   assert.equal(detail.memory.fact, fact.fact);
@@ -221,4 +223,29 @@ test("rapid saves while automatic synchronization runs all succeed", async (t) =
     assert.equal(saved.status, 200, JSON.stringify(saved.value));
   }
   assert.equal((await f.request("/v1/status")).value.records, 25);
+});
+
+test("project saves explain missing project names and a corrected retry syncs durably", async (t) => {
+  const f = await fixture(t);
+  for (const project of [undefined, "   "]) {
+    const rejected = await f.request("/v1/remember", { ...fact, project });
+    assert.equal(rejected.status, 400);
+    assert.match(rejected.value.error, /project name is required/u);
+    const mcp = await f.request("/mcp", {
+      jsonrpc: "2.0", id: 1, method: "tools/call",
+      params: { name: "hive_mind_remember", arguments: { ...fact, project } },
+    });
+    assert.equal(mcp.value.result.isError, true);
+    assert.match(mcp.value.result.content[0].text, /project name is required/u);
+  }
+  assert.equal((await f.request("/v1/status")).value.records, 0);
+  const saved = await f.request("/v1/remember", fact);
+  assert.equal(saved.status, 200);
+  assert.equal((await f.request("/v1/sync", {})).value.phase, "idle");
+  await f.restart();
+  const recalled = await f.request("/v1/search", { query: "Copper", project: fact.project });
+  assert.equal(recalled.value.memories[0].id, saved.value.memory.id);
+  const general = await f.request("/v1/remember", { ...fact, scope: "general", project: undefined });
+  assert.equal(general.status, 200);
+  assert.equal(general.value.memory.project, null);
 });
