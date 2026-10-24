@@ -7,7 +7,7 @@ canonical memory, scope, preferences, or retrieval. Preserve the current 2D grap
 Reconcile J1's remote connector refactor in an isolated checkout while preserving
 the user's explicit built-in-default/external-optional requirement. Build/test
 separate artifacts; do not interrupt active apps or overwrite live profiles.
-Current source: Hive main e612b86; J1 feature efcdddaf0 (refresh ownership fix).
+Starting source of this follow-up: Hive e612b86; J1 efcdddaf0 (refresh ownership fix).
 Prior refresh validation: 86 scanner tests passed; two importer-resume tests also
 fail unchanged on baseline. Evidence: %TEMP%/j1-refresh-checkpoint.json.
 Follow-up implementation: local/store-specific visual boards, pins, filtering,
@@ -16,7 +16,7 @@ depth-aware picking and accessible card navigation. The 2D Connections view stay
 available. The scene has no continuous animation loop or remote renderer calls.
 Visual edits leave the canonical sequence unchanged. Desktop smoke verifies
 actual pointer selection and persisted boards/pins after reload. Current smoke:
-%TEMP%/hive-continuity-ui-jxrVP3 (synthetic data only); final packaged check pending.
+%TEMP%/hive-continuity-ui-jxrVP3 (synthetic data only); packaged evidence follows below.
 Full standalone suite: 28 Node tests and 65 core tests passed. New view startup
 initially exposed a hidden-canvas readback error; zero-size guards fixed it.
 Rapid record-kind switching exposed a stale list/cancelled-load race; invalid
@@ -37,8 +37,25 @@ linking the existing workspace dependencies fixed it without dependency changes.
 Packaging first lacked Rust/MSVC; used the supported existing-monitor cache path.
 The next stage resolved a newer node-pty prerelease incompatible with its reviewed
 patch. Commit 101e13c7f pins patched stage packages to their patch version and
-rejects exact-version conflicts; all 79 packaging tests passed. Installer build
-is running from the isolated checkout, with no profile or installed-app changes.
+rejects exact-version conflicts; all 79 packaging tests passed.
+Final J1 installer build passed payload validation (46 files, 16 native sidecar
+files). A new isolated packaged backend served its bundled web client and
+contained the ownership exclusion and selected-memory hooks. Evidence:
+%TEMP%/j1-prepared-runtime-oCc0Fz/result.json. Application source 101e13c7f1f8;
+subsequent test-only commit 1212e67bd stabilizes a Windows directory-identity
+fixture with explicit safe inode IDs. Final 202 focused tests passed. Server,
+web and mobile typechecks were repeated after isolating workspace package links;
+mobile's local markdown module needed its own private link to avoid resolving
+dependencies back into the unrelated dirty checkout. Final packages use the
+isolated source tree. No installed profile or app was changed.
+Installer/evidence directory: C:/Projects/Hive_Mind.local/releases/2026-10-23.
+verification.json records file sizes, hashes and limitations. J1 is a native
+Windows preview without an automatic update feed or bundled WSL runtime; native
+provider-account, mobile-device and live upgrade verification remain unperformed.
+Existing imported conversations were preserved; the ownership fix prevents new
+self-imports. Two imported-resume tests also fail on unchanged baseline.
+Standalone publication verification passed: 91 tracked files, 20 reachable
+commits, 1,429 historical file entries, 20 unchanged MIT provenance files.
 
 Objective: implement the accepted continuity, visual memory, task state, artifact
 history, scoped preferences, working context, multi-chat coordination, and memory
