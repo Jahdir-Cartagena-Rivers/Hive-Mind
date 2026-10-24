@@ -48,6 +48,7 @@ export async function hiveGraph(file: string) {
     )
       edges.push({ source: relation.data.from, target: relation.data.to, type: "related" });
   return {
+    streamId: continuity?.streamId ?? null,
     memoryRecords: memories.length,
     nodes: [
       ...memories.map((memory) => ({
@@ -66,7 +67,25 @@ export async function hiveGraph(file: string) {
         scope: r.scope,
         kind: r.kind,
         resource: true,
-        preview: JSON.stringify(r.data).slice(0, 200),
+        ...(r.kind === "asset" ? { mime: r.data.mime, media: r.data.media ?? "image" } : {}),
+        preview:
+          [
+            r.data.objective,
+            r.data.statement,
+            r.data.caption,
+            r.data.description,
+            r.data.summary,
+            r.data.filename,
+            r.data.relationship,
+          ]
+            .filter((value): value is string => typeof value === "string" && value.length > 0)
+            .join(" · ")
+            .slice(0, 200) ||
+          (r.kind === "asset"
+            ? "Retained visual reference"
+            : r.kind === "collection"
+              ? `${Array.isArray(r.data.assetIds) ? r.data.assetIds.length : 0} references`
+              : r.title),
         updatedAt: r.updatedAt,
       })),
     ],

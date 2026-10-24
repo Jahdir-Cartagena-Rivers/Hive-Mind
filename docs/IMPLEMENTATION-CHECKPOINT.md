@@ -1,5 +1,45 @@
 # Hive Mind continuity implementation checkpoint
 
+Active follow-up (2026-10-23): prepare installable updates for both apps; add a
+visual-only organizer and an interactive 3D orb memory viewer to standalone Hive
+Mind. Layout/grouping belongs to local presentation state and must not modify
+canonical memory, scope, preferences, or retrieval. Preserve the current 2D graph.
+Reconcile J1's remote connector refactor in an isolated checkout while preserving
+the user's explicit built-in-default/external-optional requirement. Build/test
+separate artifacts; do not interrupt active apps or overwrite live profiles.
+Current source: Hive main e612b86; J1 feature efcdddaf0 (refresh ownership fix).
+Prior refresh validation: 86 scanner tests passed; two importer-resume tests also
+fail unchanged on baseline. Evidence: %TEMP%/j1-refresh-checkpoint.json.
+Follow-up implementation: local/store-specific visual boards, pins, filtering,
+lazy bounded thumbnails, and an XYZ perspective orb viewer with orbit/pan/zoom,
+depth-aware picking and accessible card navigation. The 2D Connections view stays
+available. The scene has no continuous animation loop or remote renderer calls.
+Visual edits leave the canonical sequence unchanged. Desktop smoke verifies
+actual pointer selection and persisted boards/pins after reload. Current smoke:
+%TEMP%/hive-continuity-ui-jxrVP3 (synthetic data only); final packaged check pending.
+Full standalone suite: 28 Node tests and 65 core tests passed. New view startup
+initially exposed a hidden-canvas readback error; zero-size guards fixed it.
+Rapid record-kind switching exposed a stale list/cancelled-load race; invalid
+cross-kind selections now reject and the selector awaits a current load. The
+initial synthetic PNG decoded in Chromium but not nativeImage; replaced it with
+a generated valid PNG fixture and verified native thumbnails. Packaged 0.3.0
+passed the same desktop checks in %TEMP%/hive-continuity-ui-AEEezQ: original image
+decoding, visual-only sequence checks, persisted boards/pins, pointer orb opening,
+camera orbit and the retained Connections view. All 45 packaged app/core source
+files matched the working source hashes. Installer:
+C:/Projects/Hive_Mind.local/releases/2026-10-23/hive-mind/Hive Mind Setup 0.3.0.exe.
+No install or automatic update has been performed.
+J1 isolated prep: %TEMP%/j1-continuity-prep-c1453dcd on prep/hive-mind-desktop,
+merge c48ee15a0 retains built-in default and remote release-note fix. 202 focused
+memory/provider/scanner tests and server/web typechecks passed. Typecheck first
+failed because scripts/node_modules was not linked into the isolated checkout;
+linking the existing workspace dependencies fixed it without dependency changes.
+Packaging first lacked Rust/MSVC; used the supported existing-monitor cache path.
+The next stage resolved a newer node-pty prerelease incompatible with its reviewed
+patch. Commit 101e13c7f pins patched stage packages to their patch version and
+rejects exact-version conflicts; all 79 packaging tests passed. Installer build
+is running from the isolated checkout, with no profile or installed-app changes.
+
 Objective: implement the accepted continuity, visual memory, task state, artifact
 history, scoped preferences, working context, multi-chat coordination, and memory
 regression checks. J1 keeps built-in memory by default; standalone Hive Mind is

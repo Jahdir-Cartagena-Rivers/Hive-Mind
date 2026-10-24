@@ -90,7 +90,7 @@
       kind !== byId("workspace-kind").value ||
       query !== byId("workspace-search").value
     )
-      return;
+      return false;
     records = result.records;
     const list = byId("workspace-list");
     list.replaceChildren();
@@ -104,8 +104,11 @@
     note(
       `${result.total} records · saved sequence ${result.sequence}${result.total > 200 ? " · refine your search to see more" : ""}`,
     );
+    return true;
   }
   async function edit(record = null) {
+    if (record && record.kind !== byId("workspace-kind").value)
+      throw new Error("The record list changed. Choose a record from the current list.");
     selected = record;
     modified = false;
     const kind = byId("workspace-kind").value;
@@ -473,8 +476,13 @@
   );
   byId("workspace-close").onclick = () => dialog.close();
   byId("workspace-kind").onchange = run(async () => {
-    await load();
+    const kind = byId("workspace-kind").value;
+    byId("workspace-list").replaceChildren();
     await edit();
+    while (kind === byId("workspace-kind").value && !(await load())) {
+      /* a commit refresh won; read its current successor */
+    }
+    if (kind !== byId("workspace-kind").value) return;
     document.dispatchEvent(new Event("hive:workspace-ready"));
   });
   byId("workspace-search").oninput = run(load);

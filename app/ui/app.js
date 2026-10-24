@@ -181,6 +181,7 @@ function fit() {
 function draw() {
   const dpr = window.devicePixelRatio || 1;
   const { width, height } = canvas.getBoundingClientRect();
+  if (!width || !height) return;
   if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
     canvas.width = Math.round(width * dpr);
     canvas.height = Math.round(height * dpr);
@@ -339,6 +340,10 @@ canvas.addEventListener(
   { passive: false },
 );
 new ResizeObserver(redraw).observe(canvas);
+document.addEventListener("hive:graph-visible", () => {
+  if (state.view.k <= 0) fitToNodes();
+  redraw();
+});
 
 // ---------- selection and editing ----------
 function center(node) {
@@ -348,6 +353,8 @@ function center(node) {
   state.view.y = height / 2 - node.y * state.view.k;
 }
 async function select(id, recenter = false) {
+  if (document.body.dataset.view !== "graph")
+    document.querySelector('[data-view-tab="graph"]').click();
   state.selected = id;
   const node = state.byId.get(id);
   if (node?.resource) {
@@ -392,6 +399,7 @@ const closeDetail = () => {
   $("right").hidden = true;
   redraw();
 };
+document.addEventListener("hive:open-memory", (event) => select(event.detail.id, true));
 $("close").onclick = closeDetail;
 $("save").onclick = async () => {
   try {
@@ -620,6 +628,7 @@ $("import").onclick = async () => {
 
 // Counts non-transparent pixels so a blank canvas is detectable by the smoke test.
 function painted() {
+  if (!canvas.width || !canvas.height) return 0;
   const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
   let count = 0;
   for (let i = 3; i < data.length; i += 4) if (data[i] !== 0) count++;

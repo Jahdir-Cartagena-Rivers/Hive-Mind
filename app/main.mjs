@@ -54,6 +54,7 @@ let token;
 let window;
 let tray;
 let quitting = false;
+let previewQueue = Promise.resolve();
 
 if (!app.requestSingleInstanceLock()) app.quit();
 app.on("second-instance", () => showWindow());
@@ -173,11 +174,48 @@ function registerIpc() {
     const response = await fetch(`${service.origin}/v1/assets/${id}`, {
       headers: { authorization: `Bearer ${token}` },
     });
-    if (!response.ok) throw new Error("Image is unavailable.");
+    if (!response.ok) throw new Error(`Image is unavailable (HTTP ${response.status}).`);
     const mime = response.headers.get("content-type");
     if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(mime))
       throw new Error("Invalid image response.");
     return `data:${mime};base64,${Buffer.from(await response.arrayBuffer()).toString("base64")}`;
+  });
+  // Decode and downsize in the trusted host. The library never retains dozens
+  // of full-size images in its renderer; originals remain available separately.
+  ipcMain.handle("hive:asset-preview", (event, id) => {
+    if (!trusted(event) || typeof id !== "string" || !/^[\w.-]{1,128}$/u.test(id))
+      throw new Error("Invalid image reference.");
+    const job = previewQueue.then(async () => {
+      const metadata = await call("/v1/brain", { id });
+      const record = metadata.value.records?.[0];
+      if (!record || record.kind !== "asset" || record.data.media === "file") return null;
+      // Very large originals remain retrievable, without decoding them merely
+      // because a library card scrolled into view. Decode one preview at a time.
+      if (record.data.width * record.data.height > 24_000_000) return null;
+      const response = await fetch(`${service.origin}/v1/assets/${id}`, {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      if (
+        !response.ok ||
+        !/^image\/(png|jpeg|webp|gif)$/u.test(response.headers.get("content-type") ?? "")
+      )
+        throw new Error("No image preview available.");
+      const bytes = Buffer.from(await response.arrayBuffer());
+      if (bytes.length > 10 * 1024 * 1024) throw new Error("Image exceeds the preview limit.");
+      const image = nativeImage.createFromBuffer(bytes);
+      if (image.isEmpty()) throw new Error("Image could not be decoded.");
+      const size = image.getSize();
+      const ratio = Math.min(1, 420 / Math.max(size.width, size.height));
+      return `data:image/jpeg;base64,${image
+        .resize({
+          width: Math.max(1, Math.round(size.width * ratio)),
+          height: Math.max(1, Math.round(size.height * ratio)),
+        })
+        .toJPEG(75)
+        .toString("base64")}`;
+    });
+    previewQueue = job.catch(() => {});
+    return job;
   });
   ipcMain.handle("hive:archive", async (event, action) => {
     if (!trusted(event)) throw new Error("Operation not allowed.");
@@ -342,7 +380,66 @@ async function smoke() {
     })()`);
     if (!report.workspace.imageDecoded) report.error = "Retained image did not decode.";
   }
+  if (!report.error) {
+    report.visual = await window.webContents.executeJavaScript(`(async () => {
+      document.getElementById('workspace-close').click();
+      const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const wait = () => new Promise((resolve, reject) => { const started=Date.now();const check=()=>window.__hiveVisual?.orbs ? resolve() : Date.now()-started>10000 ? reject(new Error('3D scene did not paint')) : setTimeout(check,50);check(); });
+      document.querySelector('[data-view-tab="mind"]').click(); await wait(); await frame();
+      const before = window.__hiveVisual.camera.yaw;
+      document.getElementById('mind-canvas').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));await frame();
+      if(window.__hiveVisual.camera.yaw===before)throw new Error('Camera did not orbit');
+      const p=window.__hiveVisual.sample,r=document.getElementById('mind-canvas').getBoundingClientRect();
+      document.getElementById('mind-canvas').dispatchEvent(new PointerEvent('pointerup',{clientX:r.left+p.x,clientY:r.top+p.y}));
+      const sequence = await window.hive.request('/v1/changes',{});
+      document.querySelector('[data-view-tab="organizer"]').click();
+      document.getElementById('new-board-title').value='Visual smoke board';document.getElementById('board-create').requestSubmit();
+      const boardSelect=document.getElementById('board-list').lastElementChild;boardSelect.click();
+      document.getElementById('board-list').firstElementChild.click();
+      const assignment=document.querySelector('.card-controls select');assignment.value=assignment.options[1].value;assignment.dispatchEvent(new Event('change'));
+      document.querySelector('.card-controls button').click();
+      await frame();
+      const after=await window.hive.request('/v1/changes',{});
+      if(sequence.value.sequence!==after.value.sequence)throw new Error('Visual organization changed canonical memory');
+      return {...window.__hiveVisual,cards:document.querySelectorAll('.memory-card').length,boardSaved:document.querySelectorAll('#board-list .board-item').length===3,visualOnly:true};
+    })()`);
+    if (!report.visual.finite || !report.visual.boardSaved)
+      report.error = "Visual memory verification failed.";
+  }
   if (process.env.HIVE_MIND_SMOKE_SHOT) {
+    await window.webContents.executeJavaScript(
+      "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
+    );
+    await fs.writeFile(
+      process.env.HIVE_MIND_SMOKE_SHOT.replace(/\.png$/u, "-organizer.png"),
+      (await window.webContents.capturePage()).toPNG(),
+    );
+    const reloaded = new Promise((resolve) => window.webContents.once("did-finish-load", resolve));
+    window.webContents.reload();
+    await reloaded;
+    const persisted = await window.webContents.executeJavaScript(`new Promise((resolve,reject)=>{
+      const start=Date.now();const check=()=>window.__hiveVisual?.boards===1 && window.__hiveVisual?.pins===1 ? resolve(window.__hiveVisual) : Date.now()-start>10000 ? reject(new Error('Visual layout did not survive reload')) : setTimeout(check,50);check();
+    })`);
+    report.visual.persisted = persisted.boards === 1 && persisted.pins === 1;
+    const hit = await window.webContents.executeJavaScript(
+      `(() => { const r=document.getElementById('mind-canvas').getBoundingClientRect(), p=window.__hiveVisual.sample;return {x:Math.round(r.left+p.x),y:Math.round(r.top+p.y)}; })()`,
+    );
+    window.webContents.sendInputEvent({ type: "mouseMove", ...hit });
+    window.webContents.sendInputEvent({ type: "mouseDown", ...hit, button: "left", clickCount: 1 });
+    window.webContents.sendInputEvent({ type: "mouseUp", ...hit, button: "left", clickCount: 1 });
+    report.visual.orbOpened = await window.webContents.executeJavaScript(
+      `new Promise((resolve,reject)=>{const start=Date.now();const check=()=>!document.getElementById('orb-inspector').hidden ? resolve(true) : Date.now()-start>3000 ? reject(new Error('Orb picking failed')) : requestAnimationFrame(check);check();})`,
+    );
+    await window.webContents.executeJavaScript(
+      "document.querySelector('[data-view-tab=\"mind\"]').click();new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
+    );
+    await fs.writeFile(
+      process.env.HIVE_MIND_SMOKE_SHOT.replace(/\.png$/u, "-mind.png"),
+      (await window.webContents.capturePage()).toPNG(),
+    );
+    await window.webContents.executeJavaScript(
+      "document.querySelector('[data-view-tab=\"graph\"]').click();",
+    );
     await call("/v1/sync", {});
     await window.webContents.executeJavaScript(
       "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
@@ -385,8 +482,15 @@ app.whenReady().then(async () => {
     if (window && !window.isDestroyed()) window.webContents.send("hive:changed");
   });
   createWindow();
-  if (SMOKE) await smoke();
-  else createTray();
+  if (SMOKE) {
+    try {
+      await smoke();
+    } catch (error) {
+      console.log(`SMOKE ${JSON.stringify({ error: String(error?.message ?? error) })}`);
+      await service.close();
+      app.exit(1);
+    }
+  } else createTray();
 });
 
 app.on("window-all-closed", () => {

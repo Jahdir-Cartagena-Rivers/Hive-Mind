@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("hive", {
   importFile: (metadata) => ipcRenderer.invoke("hive:import-file", metadata),
   saveReference: (id) => ipcRenderer.invoke("hive:save-reference", id),
   assetData: (id) => ipcRenderer.invoke("hive:asset-data", id),
+  assetPreview: (id) => ipcRenderer.invoke("hive:asset-preview", id),
   archive: (action) => ipcRenderer.invoke("hive:archive", action),
   onChanged: (callback) => {
     const listener = () => callback();

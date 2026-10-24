@@ -20,13 +20,29 @@ directory. Quit from the tray menu.
 
 ## What you can do
 
-- **Graph.** Every memory is a node, each project is a hub, and amber edges join
+- **Memory space.** Explore glowing memory orbs on project islands. Drag to orbit,
+  Shift-drag to pan, or scroll to zoom. Click an orb for a preview, then open the
+  actual memory or retained reference. Arrow keys rotate, +/− zoom, and Home resets.
+  Colors describe projects, memory kinds, or your boards; they do not infer emotions.
+- **Organizer.** Browse searchable cards with image thumbnails. Create visual
+  boards, move a card with its board selector or drag it onto a board, and pin
+  favorites. Boards, colors and pins are saved on this device for this store.
+  They do not change memory content, project scope, preferences, or AI recall.
+  Removing a board leaves its memories intact. These local layouts are separate
+  from canonical memory backups and are reset when restoring a different store.
+- **Connections.** Every memory is a node, each project is a hub, and amber edges join
   memories that are close in meaning. Click a hub to filter to its project; click a
   memory to read, edit, or forget it and to jump to its neighbors.
 - **Search.** Keyword and meaning-based ranking over all memories.
 - **Settings.** Choose a vault folder (notes are plain Markdown, so any editor can
   open them), add skills folders, toggle automatic sync and start-with-Windows, and
   import original documents from a Hindsight bank (read-only).
+
+The 3D view draws on demand and sleeps between interactions. It shows up to 800
+orbs at a time; use the filters or Organizer to find the rest. Cards load in pages
+of 60. Image previews are resized and decoded one at a time; very large images
+remain available through their original reference without automatic thumbnail
+decoding. The Organizer provides a keyboard-accessible alternative to the canvas.
 
 ## Tasks, preferences and visual references
 

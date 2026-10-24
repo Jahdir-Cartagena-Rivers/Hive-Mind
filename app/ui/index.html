@@ -8,6 +8,7 @@
     />
     <title>Hive Mind</title>
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="visual.css" />
   </head>
   <body>
     <header>
@@ -19,7 +20,103 @@
       <button id="sync">Sync</button>
       <button id="settings">Settings</button>
     </header>
-    <main>
+    <nav id="view-navigation" aria-label="Memory views">
+      <div class="view-tabs">
+        <button data-view-tab="mind" class="active" aria-pressed="true">
+          Memory space <small>3D</small>
+        </button>
+        <button data-view-tab="organizer" aria-pressed="false">Organizer</button>
+        <button data-view-tab="graph" aria-pressed="false">Connections</button>
+      </div>
+      <span class="view-note">Your memories, a little more tangible.</span>
+    </nav>
+    <section id="visual-shell" aria-label="Visual memory library">
+      <aside id="visual-sidebar">
+        <p class="eyebrow">YOUR LIBRARY</p>
+        <h2>A place for every thought.</h2>
+        <p class="sidebar-note">Gather references, revisit ideas, and find your way back.</p>
+        <div id="board-list"></div>
+        <form id="board-create">
+          <label for="new-board-title">New visual board</label>
+          <div class="row">
+            <input
+              id="new-board-title"
+              maxlength="60"
+              placeholder="e.g. Modeling inspiration"
+              required
+            /><button type="submit" aria-label="Create visual board">+</button>
+          </div>
+        </form>
+        <form id="board-edit" hidden>
+          <label>Board name<input id="board-title" maxlength="60" required /></label>
+          <label>Orb color<select id="board-color"></select></label>
+          <div class="row">
+            <button type="submit">Save board</button
+            ><button type="button" id="board-remove" class="quiet">Remove board</button>
+          </div>
+        </form>
+        <p class="presentation-note">
+          Boards, colors and pins organize this device’s view. They don’t change memory, AI
+          preferences, or project scope. Removing a board keeps its memories.
+        </p>
+      </aside>
+      <div id="visual-content">
+        <div class="visual-heading">
+          <div>
+            <p class="eyebrow">HIVE MIND / MEMORY LIBRARY</p>
+            <h2>Your memory space</h2>
+          </div>
+          <span id="visual-total">Loading memories…</span>
+        </div>
+        <div class="visual-toolbar">
+          <input
+            id="visual-search"
+            type="search"
+            placeholder="Find a memory, reference, or idea…"
+            aria-label="Search visual library"
+          />
+          <select id="visual-project" aria-label="Filter by project">
+            <option value="">All projects</option>
+          </select>
+          <select id="visual-kind" aria-label="Filter by kind">
+            <option value="">All kinds</option>
+          </select>
+          <select id="visual-sort" aria-label="Sort memories">
+            <option value="recent">Recently changed</option>
+            <option value="title">Alphabetical</option>
+          </select>
+        </div>
+        <p id="visual-status" role="status"></p>
+        <div id="mind-space">
+          <canvas
+            id="mind-canvas"
+            tabindex="0"
+            role="img"
+            aria-label="Three-dimensional memory space. Drag to orbit, Shift-drag to pan, scroll to zoom. Arrow keys orbit, plus and minus zoom, Home resets. Use the Organizer for a keyboard-accessible list of every memory."
+          ></canvas>
+          <div id="mind-caption">
+            <span class="live-dot"></span> Every orb holds a memory. Pick one to look inside.
+          </div>
+          <div id="mind-tooltip" hidden></div>
+          <div id="orb-inspector" hidden></div>
+          <div id="mind-controls">
+            <select id="mind-group" aria-label="Group memory islands">
+              <option value="project">Project islands</option>
+              <option value="kind">Memory kinds</option></select
+            ><button id="mind-zoom-out" aria-label="Zoom out">−</button
+            ><button id="mind-zoom-in" aria-label="Zoom in">+</button
+            ><button id="mind-reset">Reset view</button>
+          </div>
+          <p class="mind-help">Drag to orbit · Shift-drag to pan · Scroll to zoom</p>
+        </div>
+        <div id="organizer-scroll" hidden>
+          <div id="memory-cards"></div>
+          <button id="cards-more" hidden>Show more memories</button>
+        </div>
+        <div id="visual-empty" hidden></div>
+      </div>
+    </section>
+    <main id="graph-shell" hidden>
       <aside id="left">
         <input
           id="search"
@@ -141,5 +238,6 @@
     </dialog>
     <script src="app.js"></script>
     <script src="workspace.js"></script>
+    <script type="module" src="visual.js"></script>
   </body>
 </html>
