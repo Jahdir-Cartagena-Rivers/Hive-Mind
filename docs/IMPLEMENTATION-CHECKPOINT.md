@@ -138,9 +138,11 @@ networking. Evidence: `%TEMP%/hive-continuity-benchmark-SVh23K/result.json`.
 Reading order: docs/continuity-plan.md, docs/service.md, src/core/continuity.ts,
 src/brain.mjs, src/service.mjs, test/continuity.test.mjs; J1 hiveMind/connection.ts,
 backend.ts, engine.ts, runtime.ts and provider/Layers/ProviderService.ts.
-Implementation and isolated verification are complete. Remaining rollout work:
-build/install J1 and configure an external connection when wanted, then verify
-with a live provider account and native mobile device. Coarse appearance matching
+Implementation, packaging and isolated verification are complete. Remaining
+rollout work: install the prepared updates when active work can be restarted,
+configure an external connection when wanted, then verify with a live provider
+account and native mobile device. Coarse appearance matching
 does not supply semantic visual understanding; actual model use of a reference
-cannot be proved by delivery receipts. No release, install, push, profile
-migration or live provider-account test has been performed.
+cannot be proved by delivery receipts. Source updates were pushed to Hive main
+and J1 j1-code/feat/hive-mind-continuity. No hosted binary release, live install,
+profile migration or live provider-account test has been performed.
