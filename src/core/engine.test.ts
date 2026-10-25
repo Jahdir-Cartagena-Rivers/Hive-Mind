@@ -11,6 +11,7 @@ import {
   hiveMindStatus,
   recallHiveMind,
   rememberHiveMind,
+  onHiveMindChange,
   syncHiveMind,
 } from "./engine.ts";
 import { hiveContext, hiveMemoryDigest, importHiveFacts, readHiveMind } from "./store.ts";
@@ -46,6 +47,68 @@ const input = {
 const hindsight = { url: "http://127.0.0.1:8888", bank: "isolated-test", timeoutMs: 1000 };
 
 describe("unified Hive Mind", () => {
+  it("preserves revisions and avoids sync work for unchanged concurrent saves", async () => {
+    const { file, directory } = await fixture();
+    const changed = vi.fn();
+    const unsubscribe = onHiveMindChange(file, changed);
+    const original = {
+      ...input,
+      kind: "memory" as const,
+      sourcePath: NodePath.join(directory, "notes.txt"),
+    };
+    try {
+      const first = await rememberHiveMind(file, original);
+      const bytes = await NodeFSP.readFile(file, "utf8");
+      const repeats = await Promise.all([
+        rememberHiveMind(file, original),
+        rememberHiveMind(file, { ...input, subject: `  ${input.subject.toUpperCase()}  ` }),
+        rememberHiveMind(file, original),
+      ]);
+      expect(repeats.map(hiveMemoryDigest)).toEqual(Array(3).fill(hiveMemoryDigest(first)));
+      expect(await NodeFSP.readFile(file, "utf8")).toBe(bytes);
+      expect(changed).toHaveBeenCalledTimes(1);
+
+      const provenance = await rememberHiveMind(file, {
+        ...original,
+        sourceThreadId: "thread-new",
+      });
+      expect(provenance.id).toBe(first.id);
+      expect(provenance.sourcePath).toBe(original.sourcePath);
+      expect(hiveMemoryDigest(provenance)).not.toBe(hiveMemoryDigest(first));
+      expect(changed).toHaveBeenCalledTimes(2);
+      const metadata = await rememberHiveMind(file, {
+        ...original,
+        sourceThreadId: "thread-new",
+        kind: "skill",
+        sourcePath: NodePath.join(directory, "SKILL.md"),
+      });
+      expect(metadata.kind).toBe("skill");
+      expect(changed).toHaveBeenCalledTimes(3);
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it("keeps later short notes when an intervening note cannot fit the context budget", async () => {
+    const { file } = await fixture();
+    await rememberHiveMind(file, {
+      ...input,
+      subject: "Release decisions A",
+      fact: "A".repeat(1900),
+    });
+    await rememberHiveMind(file, {
+      ...input,
+      subject: "Release decisions B",
+      fact: "B".repeat(1900),
+    });
+    const short = "Keep existing user data.";
+    await rememberHiveMind(file, { ...input, subject: "Release", fact: short });
+    const context = hiveContext(file, "Review release decisions", ["J1Code"]);
+    expect(context).toContain(short);
+    expect(context.includes("A".repeat(1900)) || context.includes("B".repeat(1900))).toBe(true);
+    expect(context.split("\n").slice(1, -1).join("\n").length).toBeLessThanOrEqual(3500);
+  });
+
   it("retains legacy behavior without extensions and rejects invalid configuration", async () => {
     const { file } = await fixture();
     await rememberHiveMind(file, input);

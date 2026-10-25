@@ -85,6 +85,37 @@ test("malformed JSON, invalid fields, browser origins, unsupported routes and ov
   assert.equal((await f.request("/v1/status")).value.records, 0);
 });
 
+test("unchanged HTTP saves preserve revisions and canonical bytes while real changes still conflict", async (t) => {
+  const f = await fixture(t);
+  const first = await f.request("/v1/remember", fact);
+  assert.equal(first.status, 200);
+  const file = path.join(f.directory, "hive-mind.json");
+  const bytes = await fs.readFile(file, "utf8");
+  const repeated = await Promise.all([
+    f.request("/v1/remember", fact),
+    f.request("/v1/remember", { ...fact, subject: ` ${fact.subject.toUpperCase()} ` }),
+  ]);
+  for (const response of repeated) {
+    assert.equal(response.status, 200);
+    assert.equal(response.value.memory.revision, first.value.memory.revision);
+    assert.equal(response.value.memory.id, first.value.memory.id);
+  }
+  assert.equal(await fs.readFile(file, "utf8"), bytes);
+  const changed = await f.request("/v1/remember", { ...fact, sourceThreadId: "new-source" });
+  assert.equal(changed.status, 200);
+  assert.notEqual(changed.value.memory.revision, first.value.memory.revision);
+  assert.equal(
+    (
+      await f.request("/v1/edit", {
+        id: first.value.memory.id,
+        revision: first.value.memory.revision,
+        fact: "Stale overwrite.",
+      })
+    ).status,
+    409,
+  );
+});
+
 test("remember, correction conflict, restart and forgetting use current authoritative revisions", async (t) => {
   const f = await fixture(t);
   const remembered = await f.request("/v1/remember", fact);
@@ -166,9 +197,15 @@ test("graph, detail and context endpoints serve read tokens; MCP honors token pe
   );
   assert.equal(graph.edges.filter((edge) => edge.type === "hub").length, 2);
 
-  const traced = (await f.request("/v1/remember", { ...fact, subject: "Traced", sourceThreadId: "chat:42" })).value.memory;
+  const traced = (
+    await f.request("/v1/remember", { ...fact, subject: "Traced", sourceThreadId: "chat:42" })
+  ).value.memory;
   assert.equal(traced.sourceThreadId, "chat:42");
-  const untraced = await f.request("/v1/remember", { ...fact, subject: "Untraced", sourceThreadId: "bad id!" });
+  const untraced = await f.request("/v1/remember", {
+    ...fact,
+    subject: "Untraced",
+    sourceThreadId: "bad id!",
+  });
   assert.equal(untraced.status, 400);
   assert.match(untraced.value.error, /source thread identity/u);
   assert.equal((await f.request("/v1/graph", {}, f.readToken)).value.nodes.length, 3);
@@ -232,7 +269,9 @@ test("project saves explain missing project names and a corrected retry syncs du
     assert.equal(rejected.status, 400);
     assert.match(rejected.value.error, /project name is required/u);
     const mcp = await f.request("/mcp", {
-      jsonrpc: "2.0", id: 1, method: "tools/call",
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
       params: { name: "hive_mind_remember", arguments: { ...fact, project } },
     });
     assert.equal(mcp.value.result.isError, true);
@@ -245,7 +284,11 @@ test("project saves explain missing project names and a corrected retry syncs du
   await f.restart();
   const recalled = await f.request("/v1/search", { query: "Copper", project: fact.project });
   assert.equal(recalled.value.memories[0].id, saved.value.memory.id);
-  const general = await f.request("/v1/remember", { ...fact, scope: "general", project: undefined });
+  const general = await f.request("/v1/remember", {
+    ...fact,
+    scope: "general",
+    project: undefined,
+  });
   assert.equal(general.status, 200);
   assert.equal(general.value.memory.project, null);
 });

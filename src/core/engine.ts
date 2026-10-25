@@ -20,7 +20,7 @@ import {
   importHiveFacts,
   readHiveMind,
   recallHiveFacts,
-  rememberHiveFact,
+  rememberHiveFactResult,
   type HiveImportFact,
   type HiveMemory,
 } from "./store.ts";
@@ -133,9 +133,9 @@ async function availableSkills(
 }
 
 export async function rememberHiveMind(file: string, input: HiveImportFact) {
-  const result = await rememberHiveFact(file, input);
-  notifyHiveMindChange(file);
-  return result;
+  const result = await rememberHiveFactResult(file, input);
+  if (result.changed) notifyHiveMindChange(file);
+  return result.memory;
 }
 export async function forgetHiveMind(file: string, id: string) {
   const result = await forgetHiveFact(file, id);
