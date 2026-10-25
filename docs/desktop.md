@@ -1,5 +1,23 @@
 # Hive Mind desktop app
 
+## Updates on Windows
+
+The installed Windows app checks for releases in the background and downloads
+verified updates. Choose **Restart to update** from the tray menu when an update
+is ready. Hive Mind drains its bundled service before installation, then restarts
+with the new application and service together. Your memory, vault and credentials
+stay in the existing profile.
+
+Versions released before 0.4.0 need one bootstrap update. Run this in PowerShell;
+it downloads and verifies the installer automatically:
+
+```powershell
+irm https://raw.githubusercontent.com/Jahdir-Cartagena-Rivers/Hive-Mind/main/scripts/update-hive-mind.ps1 | iex
+```
+
+The bootstrap asks you to quit the old app from its tray first. Future updates use
+the built-in tray action. Source checkouts are updated with Git instead.
+
 Hive Mind is its own application: a memory store, a built-in semantic index, a
 Markdown vault, a skills catalog, and a graph you explore in the app. It does not
 require J1 Code, Obsidian, or Hindsight.

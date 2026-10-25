@@ -1,6 +1,6 @@
 {
   "name": "@hive-mind/core",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Source-available Hive Mind standalone service with explicitly MIT legacy engine",
   "license": "SEE LICENSE IN LICENSE",
@@ -9,7 +9,7 @@
   "main": "app/main.mjs",
   "scripts": {
     "start": "node src/cli.mjs",
-    "test": "node --test test/service.test.mjs test/continuity.test.mjs test/visual.test.mjs test/publication.test.mjs && vp test run",
+    "test": "node --test test/service.test.mjs test/continuity.test.mjs test/visual.test.mjs test/publication.test.mjs test/updater.test.mjs && vp test run",
     "test:service": "node --test test/service.test.mjs",
     "test:continuity": "node --test test/continuity.test.mjs",
     "test:desktop": "node scripts/smoke-continuity.mjs",
@@ -20,7 +20,8 @@
     "dist:dir": "electron-builder --win dir",
     "preapp": "node scripts/make-icon.mjs",
     "predist": "node scripts/make-icon.mjs",
-    "predist:dir": "node scripts/make-icon.mjs"
+    "predist:dir": "node scripts/make-icon.mjs",
+    "test:updater": "node --test test/updater.test.mjs"
   },
   "dependencies": {
     "@huggingface/tokenizers": "0.2.0",
@@ -68,6 +69,7 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "perMachine": false
-    }
+    },
+    "artifactName": "Hive-Mind-Setup-${version}-${arch}.${ext}"
   }
 }

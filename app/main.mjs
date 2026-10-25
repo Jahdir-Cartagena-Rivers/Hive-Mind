@@ -16,6 +16,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { startHiveMind } from "../src/service.mjs";
 import { subscribeHiveChanges } from "../src/core/store.ts";
+import { createUpdater, launchInstaller } from "./updater.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SMOKE = process.env.HIVE_MIND_SMOKE === "1";
@@ -53,6 +54,9 @@ let service;
 let token;
 let window;
 let tray;
+let updater;
+let updateInterval;
+let pendingInstaller;
 let quitting = false;
 let previewQueue = Promise.resolve();
 
@@ -334,15 +338,52 @@ function createTray() {
       .createFromPath(path.join(here, "../assets/icon.png"))
       .resize({ width: 16, height: 16 }),
   );
-  tray.setToolTip("Hive Mind");
+  refreshTray();
+  tray.on("click", showWindow);
+}
+
+function refreshTray() {
+  if (!tray) return;
+  const state = updater?.state;
+  const busy = state?.phase === "checking" || state?.phase === "downloading";
+  const updateLabel =
+    state?.phase === "ready"
+      ? `Restart to update to ${state.nextVersion}`
+      : state?.phase === "downloading"
+        ? `Downloading update (${state.percent}%)`
+        : state?.phase === "checking"
+          ? "Checking for updates..."
+          : state?.phase === "error"
+            ? "Update check failed — retry"
+            : "Check for updates";
+  tray.setToolTip(`Hive Mind ${app.getVersion()}`);
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: "Open Hive Mind", click: showWindow },
+      {
+        label: updateLabel,
+        enabled: Boolean(updater) && !busy,
+        click: async () => {
+          try {
+            if (updater.state.phase === "ready") {
+              pendingInstaller = await updater.prepareInstall();
+              app.quit();
+            } else {
+              const checked = await updater.check();
+              if (checked.phase === "current")
+                void dialog.showMessageBox({ type: "info", message: "Hive Mind is up to date." });
+              if (checked.phase === "error")
+                dialog.showErrorBox("Update check failed", checked.error);
+            }
+          } catch (error) {
+            dialog.showErrorBox("Update could not start", String(error.message ?? error));
+          }
+        },
+      },
       { type: "separator" },
       { label: "Quit", click: () => app.quit() },
     ]),
   );
-  tray.on("click", showWindow);
 }
 
 async function smoke() {
@@ -490,7 +531,20 @@ app.whenReady().then(async () => {
       await service.close();
       app.exit(1);
     }
-  } else createTray();
+  } else {
+    if (app.isPackaged && process.platform === "win32" && process.arch === "x64") {
+      updater = createUpdater({
+        version: app.getVersion(),
+        directory: path.join(app.getPath("userData"), "updates"),
+        onChange: refreshTray,
+      });
+      const firstCheck = setTimeout(() => void updater.check(), 10_000);
+      firstCheck.unref();
+      updateInterval = setInterval(() => void updater.check(), 6 * 60 * 60 * 1000);
+      updateInterval.unref();
+    }
+    createTray();
+  }
 });
 
 app.on("window-all-closed", () => {
@@ -500,5 +554,15 @@ app.on("before-quit", (event) => {
   if (quitting || !service) return;
   event.preventDefault();
   quitting = true;
-  void service.close().finally(() => app.exit(0));
+  clearInterval(updateInterval);
+  void service
+    .close()
+    .then(async () => {
+      if (pendingInstaller) await launchInstaller(pendingInstaller);
+    })
+    .catch((error) => {
+      dialog.showErrorBox("Hive Mind could not finish closing", String(error.message ?? error));
+      if (pendingInstaller) app.relaunch();
+    })
+    .finally(() => app.exit(0));
 });
