@@ -9,7 +9,7 @@
   "main": "app/main.mjs",
   "scripts": {
     "start": "node src/cli.mjs",
-    "test": "node --test test/service.test.mjs test/continuity.test.mjs test/visual.test.mjs test/publication.test.mjs test/updater.test.mjs && vp test run",
+    "test": "node --test test/service.test.mjs test/continuity.test.mjs test/presence.test.mjs test/visual.test.mjs test/publication.test.mjs test/updater.test.mjs && vp test run",
     "test:service": "node --test test/service.test.mjs",
     "test:continuity": "node --test test/continuity.test.mjs",
     "test:desktop": "node scripts/smoke-continuity.mjs",

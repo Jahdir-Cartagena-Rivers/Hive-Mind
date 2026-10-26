@@ -82,6 +82,27 @@ retrieve those records explicitly rather than assuming the complete task fitted.
 J1's per-turn episodes retain the delivered record IDs and context stream/sequence
 so later turns do not overwrite the earlier delivery trace.
 
+## Live chat presence
+
+Chats can see what other chats are doing right now. Presence is ephemeral service
+memory: it never touches the durable store, its revisions or the change history,
+and it is lost on restart.
+
+- `POST /v1/presence` (write token): `{chatId, provider, status: working|waiting|idle,
+  step?, title?, project?, taskId?}`; `{action: "end", chatId}` removes a chat. Repeat
+  about every 30 seconds while working. Working and waiting entries expire after two
+  minutes without a heartbeat; idle ones linger for ten minutes.
+- `POST /v1/presence/list` (read token): `{projects?, excludeChatId?}`. Project-scoped
+  entries are visible only to callers naming that project, like memories.
+- `GET /v1/events` also emits `event: presence` (no cursor) with the full list whenever a
+  status, step, task or project changes; repeated heartbeats are silent.
+- Working-context packets include a short "Other chats right now" block (never the
+  requesting chat), and flag a chat that is working on the same task. This is a soft
+  claim: it warns, it does not lock; the revision checks still protect task edits.
+- MCP: `hive_mind_presence` (`list`, `update`, `end`) lets any agent report and read.
+
+Step labels are short summaries, not tool output. Do not report secrets or commands.
+
 For configuration examples see `examples/hive-mind.config.example.json`. Paths
 belong to the service host and must be absolute. Vault notes can be edited in
 Obsidian after configuration. Skills are cataloged rather than executed. Local

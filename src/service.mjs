@@ -43,6 +43,7 @@ import { importHiveHindsight } from "./core/importHindsight.ts";
 import { HiveLocalEngine } from "./core/localEngine.ts";
 import { readHiveConfig } from "./core/config.ts";
 import { ownStateDirectory } from "./ownership.mjs";
+import { createPresence, PresenceError } from "./presence.mjs";
 
 const MAX_BODY = 64 * 1024;
 const readOperations = new Set([
@@ -55,6 +56,7 @@ const readOperations = new Set([
   "/v1/working-context",
   "/v1/archive/export",
   "/v1/visual-search",
+  "/v1/presence/list",
 ]);
 class RequestError extends Error {
   constructor(status, message) {
@@ -190,6 +192,7 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
   });
   const runtime = new HiveMindRuntime(file, async () => engine.ensure(await readHiveConfig(file)));
   const streams = new Set();
+  const presence = createPresence();
   const respond = (response, status, result) => {
     response.writeHead(status, {
       "content-type": "application/json; charset=utf-8",
@@ -197,6 +200,18 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
       "x-content-type-options": "nosniff",
     });
     response.end(JSON.stringify(result));
+  };
+  const presenceOperation = (body, listOnly = false) => {
+    const { action = listOnly ? "list" : "update", ...input } = body;
+    if (action === "list") {
+      if (input.projects !== undefined && !(Array.isArray(input.projects) && input.projects.every((p) => typeof p === "string")))
+        throw new RequestError(400, "Invalid project filter.");
+      return { presence: presence.list(input) };
+    }
+    if (listOnly) throw new RequestError(400, "Use /v1/presence to report activity.");
+    if (action === "end") return { ended: presence.end(String(input.chatId ?? "")) };
+    if (action !== "update") throw new RequestError(400, "Unknown presence action.");
+    return { presence: presence.update(input) };
   };
   const server = http.createServer(async (request, response) => {
     try {
@@ -281,6 +296,16 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
         const unsubscribe = subscribeHiveChanges(file, () => {
           void pump();
         });
+        // Presence is ephemeral, so it travels beside the durable change stream with no cursor.
+        const sendPresence = () => {
+          if (!response.destroyed)
+            response.write(`event: presence
+data: ${JSON.stringify({ presence: presence.list() })}
+
+`);
+        };
+        const unsubscribePresence = presence.subscribe(sendPresence);
+        sendPresence();
         const heartbeat = setInterval(() => {
           if (!response.write(": heartbeat\n\n")) response.end();
         }, 15000);
@@ -289,6 +314,7 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
         response.on("close", () => {
           clearInterval(heartbeat);
           unsubscribe();
+          unsubscribePresence();
           streams.delete(response);
         });
         await pump();
@@ -310,7 +336,11 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
           call: async (name, args) => {
             switch (name) {
               case "hive_mind_working_context":
-                return brainContext(file, args);
+                return brainContext(file, args, (projects) =>
+                  presence.list({ projects, excludeChatId: args.threadId }),
+                );
+              case "hive_mind_presence":
+                return presenceOperation(args);
               case "hive_mind_record": {
                 const { action, ...input } = args;
                 if (action === "list") return brainSnapshot(file, input);
@@ -420,6 +450,8 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
         "/v1/archive/import",
         "/v1/files",
         "/v1/visual-search",
+        "/v1/presence",
+        "/v1/presence/list",
       ]);
       if (!operations.has(url.pathname)) throw new RequestError(404, "Unknown operation.");
       if (access !== "write" && !readOperations.has(url.pathname))
@@ -452,7 +484,13 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
           result = await brainChanges(file, body.after, body.streamId);
           break;
         case "/v1/working-context":
-          result = await brainContext(file, body);
+          result = await brainContext(file, body, (projects) =>
+            presence.list({ projects, excludeChatId: body.threadId }),
+          );
+          break;
+        case "/v1/presence":
+        case "/v1/presence/list":
+          result = presenceOperation(body, url.pathname === "/v1/presence/list");
           break;
         case "/v1/assets":
           result = await importBrainAsset(file, body);
@@ -550,11 +588,15 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
       respond(response, 200, result);
     } catch (error) {
       const status =
-        error instanceof RequestError || error instanceof BrainError ? error.status : 400;
+        error instanceof RequestError || error instanceof BrainError || error instanceof PresenceError
+          ? error.status
+          : 400;
       if (!response.headersSent && !response.destroyed)
         respond(response, status, {
           error:
-            error instanceof RequestError || error instanceof BrainError
+            error instanceof RequestError ||
+            error instanceof BrainError ||
+            error instanceof PresenceError
               ? error.message
               : "Operation failed; existing records are preserved.",
         });
@@ -573,6 +615,7 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
   }
   const timer = setInterval(() => {
     void runtime.automatic();
+    presence.sweep();
   }, 30000);
   timer.unref();
   let closing;

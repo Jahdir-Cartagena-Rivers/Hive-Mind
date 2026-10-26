@@ -57,6 +57,16 @@ self-imports. Two imported-resume tests also fail on unchanged baseline.
 Standalone publication verification passed: 91 tracked files, 20 reachable
 commits, 1,429 historical file entries, 20 unchanged MIT provenance files.
 
+Live chat presence (2026-10-26): ephemeral in-memory registry (`src/presence.mjs`,
+`/v1/presence`, `hive_mind_presence`, `event: presence` on `/v1/events`), an "Other
+chats right now" block in working context, a soft same-task overlap flag instead of
+automatic lease writes (leases would churn task revisions on every turn), a desktop
+strip, and J1 heartbeats from provider events (`hiveMind/livePresence.ts`, category
+labels only, never commands or paths) plus a `hive_mind_active_chats` tool. External
+Hive Mind only; built-in mode has no presence. Evidence: 7 presence tests, full
+standalone suite, desktop smoke, J1 251 server tests and typecheck. No live provider
+account or mobile device was used.
+
 Objective: implement the accepted continuity, visual memory, task state, artifact
 history, scoped preferences, working context, multi-chat coordination, and memory
 regression checks. J1 keeps built-in memory by default; standalone Hive Mind is

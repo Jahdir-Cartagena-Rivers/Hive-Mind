@@ -26,6 +26,27 @@ export const tools = [
     write: true,
   },
   {
+    name: "hive_mind_presence",
+    description:
+      "See or report what chats are doing right now. list: other active chats (status, short step, shared task). update: report your own chatId, provider, status (working|waiting|idle), a short step label, and project/taskId when known; repeat every ~30s while working and use action end when finished. Status is ephemeral and never a place for secrets or instructions.",
+    inputSchema: object(
+      {
+        action: { type: "string", enum: ["list", "update", "end"] },
+        chatId: text,
+        provider: text,
+        title: text,
+        project: text,
+        taskId: text,
+        status: { type: "string", enum: ["working", "waiting", "idle"] },
+        step: text,
+        projects: { type: "array", items: text },
+        excludeChatId: text,
+      },
+      ["action"],
+    ),
+    write: true,
+  },
+  {
     name: "hive_mind_working_context",
     description:
       "Get bounded current task state, scoped preferences, references, recent evidence and image IDs before a turn. Read returned images with hive_mind_image. taskId explicitly continues an existing task across project surfaces.",
@@ -33,6 +54,7 @@ export const tools = [
       query: text,
       projects: { type: "array", items: text },
       taskId: text,
+      threadId: text,
       maxChars: { type: "integer", minimum: 1000, maximum: 24000 },
     }),
     write: false,
@@ -159,7 +181,8 @@ export async function handleMcp(message, { call, canWrite }) {
       const tool = tools.find((entry) => entry.name === message.params?.name);
       if (!tool) return fail(-32602, "Unknown tool.");
       const actionRead =
-        (tool.name === "hive_mind_record" && message.params?.arguments?.action === "list") ||
+        (["hive_mind_record", "hive_mind_presence"].includes(tool.name) &&
+          message.params?.arguments?.action === "list") ||
         (["hive_mind_image", "hive_mind_file"].includes(tool.name) &&
           message.params?.arguments?.action === "read");
       if (tool.write && !canWrite && !actionRead)

@@ -47,6 +47,7 @@ const ROUTES = new Set([
   "/v1/working-context",
   "/v1/changes",
   "/v1/visual-search",
+  "/v1/presence/list",
 ]);
 
 app.setName("Hive Mind");
@@ -446,6 +447,30 @@ async function smoke() {
     })()`);
     if (!report.visual.finite || !report.visual.boardSaved)
       report.error = "Visual memory verification failed.";
+  }
+  if (!report.error) {
+    // Presence is ephemeral service state; report one chat and expect the live strip to show it.
+    await call("/v1/presence", {
+      chatId: "smoke-chat",
+      provider: "smoke",
+      title: "Smoke chat",
+      status: "working",
+      step: "editing files",
+    });
+    report.live = await window.webContents.executeJavaScript(
+      `new Promise((resolve) => {
+        const started = Date.now();
+        const poll = () => {
+          const strip = document.getElementById('live-chats');
+          const text = strip.textContent;
+          if (!strip.hidden && text.includes('Smoke chat') && text.includes('editing files')) resolve({ shown: true });
+          else if (Date.now() - started > 8000) resolve({ shown: false, text });
+          else setTimeout(poll, 100);
+        };
+        poll();
+      })`,
+    );
+    if (!report.live.shown) report.error = "Live chat strip did not show a reported chat.";
   }
   if (process.env.HIVE_MIND_SMOKE_SHOT) {
     await window.webContents.executeJavaScript(

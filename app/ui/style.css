@@ -308,3 +308,37 @@ code {
   flex: 1;
   overflow-wrap: anywhere;
 }
+#live-chats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 12px;
+}
+#live-chats[hidden] {
+  display: none;
+}
+.live-chat {
+  display: inline-flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+}
+.live-chat strong {
+  color: var(--text);
+}
+.live-chat.working {
+  border-color: var(--accent);
+}
+.live-chat.idle {
+  opacity: 0.6;
+}
+.live-chat.overlap {
+  border-color: var(--danger);
+  color: var(--danger);
+}

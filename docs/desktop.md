@@ -105,7 +105,7 @@ Applications that find this file can use:
 - **MCP** at `http://127.0.0.1:8788/mcp` with `Authorization: Bearer <token>`. Tools:
   `hive_mind_recall`, `hive_mind_remember`, `hive_mind_forget`, `hive_mind_status`,
   `hive_mind_sync`, `hive_mind_record`, `hive_mind_working_context`,
-  `hive_mind_image` and `hive_mind_file`. Image reads return actual MCP image
+  `hive_mind_presence`, `hive_mind_image` and `hive_mind_file`. Image reads return actual MCP image
   content; file reads return an embedded resource with retained bytes.
 - **HTTP** operations listed in [service.md](service.md), plus `POST /v1/graph`,
   `POST /v1/memory`, and `POST /v1/context` (prompt-ready background notes).

@@ -30,6 +30,7 @@ const ROOT_FILES = new Set([
   "src/service.mjs",
   "src/mcp.mjs",
   "src/brain.mjs",
+  "src/presence.mjs",
   "src/ownership.mjs",
   "app/main.mjs",
   "app/updater.mjs",
@@ -38,6 +39,7 @@ const ROOT_FILES = new Set([
   "app/ui/style.css",
   "app/ui/app.js",
   "app/ui/workspace.js",
+  "app/ui/live.js",
   "app/ui/visual.js",
   "app/ui/visual-model.mjs",
   "app/ui/visual.css",
@@ -55,6 +57,7 @@ const ROOT_FILES = new Set([
   "scripts/update-manifest.mjs",
   "scripts/update-hive-mind.ps1",
   "test/continuity.test.mjs",
+  "test/presence.test.mjs",
   "test/publication.test.mjs",
   "scripts/check-publication.mjs",
 ]);
