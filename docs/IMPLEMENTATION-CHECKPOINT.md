@@ -1,5 +1,19 @@
 # Hive Mind continuity implementation checkpoint
 
+Presence validation follow-up (2026-10-26): `node scripts/test-j1-presence.mjs
+C:/Projects/J1_Code` passed with two actual J1 LivePresence reporters and an
+isolated Hive service: streamed activity, same-task overlap, other-chat context,
+project isolation, step privacy, waiting, heartbeat, completion and disconnect.
+Heartbeats left the durable sequence unchanged. The test found no provider-account
+evidence: these are concurrent runtime reporters, not model-generated turns.
+J1's delayed-send regression reproduced completion arriving before working;
+per-chat ordered delivery fixes it without blocking provider turns or other chats.
+Standalone 108 tests and the isolated Electron smoke (including live strip) pass.
+Evidence: `%TEMP%/hive-j1-presence-NNNFTe/result.json` and
+`%TEMP%/hive-continuity-ui-DlwEXG/result.txt`. Preserve live profiles and unrelated
+J1 edits. Publish Hive main and J1 feat/hive-mind-continuity; no installation or
+release is implied.
+
 Active follow-up (2026-10-23): prepare installable updates for both apps; add a
 visual-only organizer and an interactive 3D orb memory viewer to standalone Hive
 Mind. Layout/grouping belongs to local presentation state and must not modify

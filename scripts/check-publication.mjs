@@ -46,6 +46,7 @@ const ROOT_FILES = new Set([
   "test/visual.test.mjs",
   "scripts/make-icon.mjs",
   "scripts/smoke-continuity.mjs",
+  "scripts/test-j1-presence.mjs",
   "scripts/benchmark-continuity.mjs",
   "docs/desktop.md",
   "docs/continuity-plan.md",
