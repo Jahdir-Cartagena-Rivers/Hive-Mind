@@ -1,6 +1,6 @@
 {
   "name": "@hive-mind/core",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "description": "Source-available Hive Mind standalone service with explicitly MIT legacy engine",
   "license": "SEE LICENSE IN LICENSE",
