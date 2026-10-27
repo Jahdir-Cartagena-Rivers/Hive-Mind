@@ -74,6 +74,27 @@ injected token provider is the extension point for direct OAuth or Composio.
 Composio's chat tools are **not** automatically credentials for background scripts.
 No new Google project, OAuth client, token or service-account key was created.
 
+For the already configured Platform route, `src/composio-drive-transport.mjs`
+exports a folder-bound adapter. Set only `COMPOSIO_API_KEY` through the host's
+protected credential mechanism. `transportOptions` must explicitly contain
+`folderId`, `userId` and `connectedAccountId`; there are no private account defaults.
+The four Drive tools are pinned to20261022_00 because omitted versions use the
+older frozen schema. For You `ck_` consumer keys require MCP and are rejected here.
+No Google OAuth token is exported. Project credentials are sent only to Composio;
+signed storage transfers never receive that header. Provider error bodies are
+discarded, downloads/parents are checked, and uncertain Drive writes are not
+blindly replayed. This deterministic storage adapter extends the existing bound
+remote script path rather than introducing another agent or identity system.
+
+The adapted transport has offline rejection tests and an independently replayed
+read-only live provider check. One actual encrypted synthetic checkpoint was then
+seeded through the same one-cycle CLI into a separate private qualification folder.
+No real memory or credential payload was uploaded. Retained source/evidence from
+the remote implementation stays in the private transition workspace, not this repo.
+
+API contracts checked against [tool execution](https://docs.composio.dev/reference/v3/api-reference/tools/postToolsExecuteByToolSlug)
+and [staged file uploads](https://docs.composio.dev/reference/v3/api-reference/files/postFilesUploadRequest).
+
 `node scripts/cloud-sync-once.mjs <private-config.json>` runs one resumable cycle.
 Config names `workspace`, `client`, `keyFile`, `tokenFile`, loopback `origin`,
 `cacheDirectory`, explicit `bootstrap`, and either native `folderId` or an absolute

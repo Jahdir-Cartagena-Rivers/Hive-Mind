@@ -45,7 +45,8 @@ try {
   if (result.status === 'conflict') process.exitCode = 2;
 } catch (error) {
   // No raw fetch/config/parser errors, request bodies, local paths or credentials in routine logs.
-  console.error(error.status ? `Cloud sync was rejected (HTTP ${error.status}); pending state is retained.`
-    : 'Cloud sync did not complete; preserve the encrypted pending cache and inspect the protected configuration.');
+  console.error(JSON.stringify({ failed: true, status: error.status,
+    ...(typeof error.logId === 'string' && /^log_[A-Za-z0-9_-]{1,100}$/u.test(error.logId) ? { logId: error.logId } : {}),
+    message: 'Cloud sync did not complete; preserve the encrypted pending cache and inspect the protected configuration.' }));
   process.exitCode = 1;
 }

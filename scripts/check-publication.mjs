@@ -44,6 +44,8 @@ const ROOT_FILES = new Set([
   "test/cloud-merge.test.mjs",
   "src/cloud-archive.mjs",
   "src/drive-transport.mjs",
+  "src/composio-drive-transport.mjs",
+  "test/composio-drive-transport.test.mjs",
   "scripts/cloud-checkpoint.mjs",
   "test/cloud-journal.test.mjs",
   "test/cloud-archive.test.mjs",
