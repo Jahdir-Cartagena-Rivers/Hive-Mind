@@ -73,6 +73,10 @@ independent implementation of the same idea. Older MIT copies remain reusable.
 
 ## Credits
 
+Drive-backed shared storage is under development. See
+[isolated Drive staging](docs/drive-staging.md) for the implemented checkpoint
+layer, test commands and remaining canonical-migration requirements.
+
 Hive Mind originated in J1 Code, a derivative of
 [T3 Code](https://github.com/pingdotgg/t3code).
 [Hindsight](https://github.com/vectorize-io/hindsight) supplies semantic retrieval.
