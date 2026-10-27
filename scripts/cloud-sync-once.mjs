@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { CloudJournal } from '../src/cloud-journal.mjs';
 import { CloudReplica } from '../src/cloud-replica.mjs';
 import { DriveTransport } from '../src/drive-transport.mjs';
+import { ChunkedTransport } from '../src/cloud-chunks.mjs';
 
 async function protectedFile(file, maxBytes) {
   if (!path.isAbsolute(file ?? '')) throw new Error('Protected file paths must be absolute.');
@@ -30,7 +31,7 @@ try {
     const adapter = await import(pathToFileURL(config.transportModule).href);
     transport = await adapter.createTransport(config.transportOptions ?? {});
   } else transport = new DriveTransport({ folderId: config.folderId, token: async () => process.env.HIVE_MIND_DRIVE_ACCESS_TOKEN });
-  const journal = new CloudJournal({ transport, key, workspace: config.workspace, client: config.client });
+  const journal = new CloudJournal({ transport: new ChunkedTransport(transport), key, workspace: config.workspace, client: config.client });
   const request = async (route, body) => {
     const response = await fetch(origin.origin + route, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(45000),
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify(body) });

@@ -58,7 +58,7 @@ export class DriveTransport {
   }
 
   async create(name, bytes) {
-    if (!/^hive-[a-f0-9]{64}\.checkpoint$/u.test(name) || bytes.length > 90 * 1024 * 1024)
+    if (!/^(?:hive-[a-f0-9]{64}\.checkpoint|hive-part-[a-f0-9]{64}\.blob)$/u.test(name) || bytes.length > 90 * 1024 * 1024)
       throw new Error('Invalid Drive checkpoint upload.');
     const initial = await this.request('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name', {
       method: 'POST', headers: { 'content-type': 'application/json; charset=UTF-8',

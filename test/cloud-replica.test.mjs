@@ -10,6 +10,7 @@ import { CloudJournal } from '../src/cloud-journal.mjs';
 import { CloudReplica } from '../src/cloud-replica.mjs';
 import { liveCloudSnapshot, applyLiveCloudArchive } from '../src/cloud-live.mjs';
 import { rememberHiveFact, forgetHiveFact, readHiveMind } from '../src/core/store.ts';
+import { importBrainFile } from '../src/brain.mjs';
 
 async function fixture(t) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'hive-cloud-replica-'));
@@ -108,4 +109,15 @@ test('a nonempty unbound join cannot overwrite either canonical store', async t 
   const bytes = await fs.readFile(b.file), count = f.files.length;
   await assert.rejects(b.replica.syncOnce(), /initial reconciliation/);
   assert.deepEqual(await fs.readFile(b.file), bytes); assert.equal(f.files.length, count);
+});
+
+test('retained files larger than the projection limit survive encrypted cache replacement and restart', async t => {
+  const f = await fixture(t), a = await f.client('desktop', 'seed');
+  await importBrainFile(a.file, { scope: 'general', title: 'synthetic binary fixture', filename: 'fixture.bin',
+    base64: Buffer.alloc(3 * 1024 * 1024, 13).toString('base64'), source: { threadId: 'test', provider: 'test', type: 'user' } });
+  assert.equal((await a.replica.syncOnce()).status, 'synced');
+  const cache = path.join(a.options.directory, 'replica.checkpoint');
+  assert.ok((await fs.stat(cache)).size > 4_000_000);
+  const restarted = new CloudReplica({ ...a.options, bootstrap: 'resume' });
+  assert.equal((await restarted.syncOnce()).status, 'current');
 });

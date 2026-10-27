@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { fingerprint, newContinuity } from './core/continuity.ts';
-import { writeAtomic } from './core/files.ts';
+import { renameReplacing } from './core/files.ts';
 import { checkpointId, validateCloudArchive } from './cloud-archive.mjs';
 import { cloudMergeBase, mergeCloudArchives } from './cloud-merge.mjs';
 import { ownStateDirectory } from './ownership.mjs';
@@ -28,7 +29,14 @@ export class CloudReplica {
   async save(state) {
     // Local base/pending state contains memory too. Encrypt it with the same protected key.
     const packet = this.journal.encode({ format: 'hive-mind.archive.v1', replica: state });
-    await writeAtomic(this.cache, packet.bytes.toString('utf8'));
+    const existing = await fs.lstat(this.cache).catch(error => { if (error.code !== 'ENOENT') throw error; return null; });
+    if (existing && (!existing.isFile() || existing.isSymbolicLink() || existing.size > 90 * 1024 * 1024))
+      throw new Error('Invalid encrypted replica cache.');
+    const temporary = `${this.cache}.${randomUUID()}.tmp`;
+    try {
+      await fs.writeFile(temporary, packet.bytes, { flag: 'wx', mode: 0o600 });
+      await renameReplacing(temporary, this.cache);
+    } finally { await fs.rm(temporary, { force: true }); }
   }
 
   async load() {

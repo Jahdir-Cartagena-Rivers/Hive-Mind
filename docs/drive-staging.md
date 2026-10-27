@@ -23,6 +23,12 @@ the existing process lock and atomic local saves cannot coordinate two computers
 - Native Drive v3 transport with complete pagination, bounded downloads, pinned
   HTTPS resumable uploads and injected authentication. No credential or provider
   error body is logged. No network write is automatically retried after uncertainty.
+- Chunked transport wrapper for Composio's small-upload tools: encrypted checkpoints
+  above3MiB become immutable content-addressed parts and a final small manifest.
+  Interrupted part uploads leave no committed checkpoint; retries verify/reuse
+  existing parts. Missing/corrupt duplicates and reassembly hashes reject. The
+  routine wraps both native and custom transports; all clients must support this
+  envelope before sharing chunked checkpoints. Parts contain ciphertext only.
 - Complete archive validation using existing canonical/link/asset validators in a
   throwaway profile; empty-destination-only restore. Actual bytes, histories,
   tombstones and retry receipts survive. Restores receive a new stream identity
@@ -105,6 +111,9 @@ The full-snapshot staging journal is capped at 64 MiB plaintext per checkpoint,
 90 MiB per downloaded object, 10,000 folder objects and 256 MiB per replay.
 It needs incremental storage before high-volume long-running use. No production
 service configuration, installer, live profile or canonical memory was changed.
+Encrypted replica state also shares the64MiB plaintext envelope limit; base/pending
+transaction overhead counts toward it. The cache supports replacement beyond the
+ordinary projection file's4MB limit; a real retained3MiB file is covered in tests.
 
 Drive contracts checked against Google's primary documentation:
 [file listing](https://developers.google.com/workspace/drive/api/reference/rest/v3/files/list)

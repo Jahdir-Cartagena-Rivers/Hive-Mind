@@ -36,6 +36,8 @@ const ROOT_FILES = new Set([
   "src/cloud-merge.mjs",
   "src/cloud-live.mjs",
   "src/cloud-replica.mjs",
+  "src/cloud-chunks.mjs",
+  "test/cloud-chunks.test.mjs",
   "test/cloud-live.test.mjs",
   "test/cloud-replica.test.mjs",
   "scripts/cloud-sync-once.mjs",
