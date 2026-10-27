@@ -220,4 +220,3 @@ export function createTransport({ folderId, userId, connectedAccountId, fetchImp
   return { list: () => transport.list(folderId), read: id => transport.read(id, { folderId }),
     create: (name, bytes) => transport.create(folderId, name, bytes) };
 }
-
