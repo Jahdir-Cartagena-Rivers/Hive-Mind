@@ -23,7 +23,7 @@ test('encrypts full checkpoint content and authenticates key, namespace, hash an
   assert.throws(() => client(remote(), 'other', { workspace: 'wrong' }).decode(prepared.id, prepared.bytes), /authentication/);
   const corrupt = Buffer.from(prepared.bytes); corrupt[20] ^= 1;
   assert.throws(() => a.decode(prepared.id, corrupt), /authentication/);
-  const future = Buffer.from(JSON.stringify({ version: 2 }));
+  const future = Buffer.from(JSON.stringify({ version: 99 }));
   assert.throws(() => a.decode(createHash('sha256').update(future).digest('hex'), future), /authentication/);
   assert.throws(() => a.decode(prepared.id, Buffer.alloc(90 * 1024 * 1024 + 1)), /authentication/);
   assert.throws(() => a.encode(archive('x'), 'bad-parent'), /parent/);
@@ -76,6 +76,18 @@ test('missing ancestor, corrupt duplicate, stale parent and unrelated root rejec
   await assert.rejects(a.inspect(), /authentication/);
   transport.files.pop(); transport.files.shift();
   await assert.rejects(a.inspect(), /missing ancestor/);
+});
+
+test('an explicit multi-parent checkpoint reconciles observed branches and rejects duplicate parents', async () => {
+  const transport = remote(); const a = client(transport);
+  const root = a.encode(archive('root')); await a.publish(root);
+  const left = a.encode(archive('left'), root.id), right = a.encode(archive('right'), root.id);
+  await transport.create(`hive-${left.id}.checkpoint`, left.bytes);
+  await transport.create(`hive-${right.id}.checkpoint`, right.bytes);
+  const merged = a.encode(archive('reconciled'), [left.id, right.id]);
+  assert.equal((await a.publish(merged)).conflict, false);
+  assert.deepEqual((await a.inspect()).heads, [merged.id]);
+  assert.throws(() => a.encode(archive('x'), [left.id, left.id]), /parent/);
 });
 
 test('Drive adapter paginates with exact opaque tokens and fails on incomplete/repeated pages', async () => {

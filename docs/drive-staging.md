@@ -14,8 +14,12 @@ the existing process lock and atomic local saves cannot coordinate two computers
 - Immutable parent-linked checkpoints; every duplicate name is verified. Missing
   ancestry, wrong keys/workspaces, corruption, future versions and incomplete
   listings reject. Competing branches are preserved and reported as conflicts.
-  Even unrelated concurrent edits currently require reconciliation: this is a
-  conservative checkpoint protocol, not a record-level merge implementation.
+  The three-way merge module combines independent changes to memories/records and
+  retry receipts; competing edits retain both source archives and report conflicts.
+  Memory tombstones suppress stale corrections while a deliberate re-remember
+  after observing a forget follows the existing store semantics. Brain record IDs
+  remain permanently forgotten. Merged assets and links require full validation.
+  Protocol2 checkpoints can reconcile multiple parent heads; protocol1 remains readable.
 - Native Drive v3 transport with complete pagination, bounded downloads, pinned
   HTTPS resumable uploads and injected authentication. No credential or provider
   error body is logged. No network write is automatically retried after uncertainty.
@@ -42,6 +46,7 @@ contain no credential values. Node 24.13+ and existing lockfile dependencies app
 node scripts/cloud-checkpoint.mjs prepare <config.json>
 node scripts/cloud-checkpoint.mjs publish <config.json>
 node scripts/cloud-checkpoint.mjs inspect <config.json>
+node scripts/cloud-checkpoint.mjs reconcile <new-pending-config.json>
 node scripts/cloud-checkpoint.mjs restore <empty-target-config.json>
 ```
 
@@ -57,9 +62,12 @@ No new Google project, OAuth client, token or service-account key was created.
    folder permissions, scheduled execution and restart recovery. A short-lived
    access token alone is insufficient. Remote routines reportedly run no more
    frequently than every five minutes; measure this rather than claiming live sync.
-2. Incremental record reconciliation and explicit conflict resolution, with stale
-   client and concurrent deletion tests. No timestamp-based winner. Local service
-   writes and cloud replay must share the existing mutation queue.
+2. Integrate the tested three-way merge into a continuous client, implement
+   explicit resolution of reported competing edits and qualify dependent-record
+   deletion, multi-parent/criss-cross ancestry and stale clients. The staging CLI
+   reconciles exactly two heads with one unique common base and writes a pending
+   checkpoint for a separate publish. It does not modify a live profile. Local
+   service writes and cloud replay must share the existing mutation queue.
 3. Forget-retention protocol. Current immutable checkpoints retain old encrypted
    content, so logical tombstones alone do not satisfy erasure. No real memory
    migration until retained checkpoints/assets, stale clients and key lifecycle

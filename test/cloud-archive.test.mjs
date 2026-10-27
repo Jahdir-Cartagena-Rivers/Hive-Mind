@@ -9,6 +9,8 @@ import { prepareCloudArchive, restoreCloudArchive, checkpointId } from '../src/c
 import { exportBrain, saveBrainRecord, importBrainFile, readBrainAsset } from '../src/brain.mjs';
 import { rememberHiveFact, forgetHiveFact, readHiveMind } from '../src/core/store.ts';
 import { ownStateDirectory } from '../src/ownership.mjs';
+import { mergeCloudArchives } from '../src/cloud-merge.mjs';
+import { validateCloudArchive } from '../src/cloud-archive.mjs';
 
 async function fixture(t) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'hive-cloud-test-'));
@@ -74,4 +76,22 @@ test('authenticated but malformed/future archive rejects before changing target 
   const bad = f.journal.encode({ format: 'hive-mind.archive.v1', store: { version: 2, memories: [] }, images: {} });
   await assert.rejects(restoreCloudArchive(target, f.journal, bad.id, bad.bytes), /malformed/);
   await assert.rejects(fs.access(path.join(target, 'hive-mind.json')), { code: 'ENOENT' });
+});
+
+test('independent three-way merged changes pass real archive validation and restore with stable IDs', async t => {
+  const f = await fixture(t);
+  const original = await rememberHiveFact(f.file, { scope: 'general', subject: 'alpha', fact: 'before', sourceThreadId: 'test' });
+  const base = await exportBrain(f.file);
+  await rememberHiveFact(f.file, { scope: 'general', subject: 'alpha', fact: 'corrected', sourceThreadId: 'test' });
+  const left = await exportBrain(f.file);
+  const right = structuredClone(base);
+  right.store.memories.push({ ...original, id: 'new-synthetic-id', subject: 'beta', fact: 'independent addition' });
+  const merged = mergeCloudArchives(base, left, right);
+  assert.deepEqual(merged.conflicts, []);
+  await validateCloudArchive(merged.archive, f.root);
+  const pending = f.journal.encode(merged.archive);
+  const destination = path.join(f.root, 'merged');
+  await restoreCloudArchive(destination, f.journal, pending.id, pending.bytes);
+  const store = await readHiveMind(path.join(destination, 'hive-mind.json'));
+  assert.deepEqual(store.memories.map(m => [m.id, m.fact]), [[original.id, 'corrected'], ['new-synthetic-id', 'independent addition']]);
 });

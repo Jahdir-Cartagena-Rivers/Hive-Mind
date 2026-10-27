@@ -4,6 +4,8 @@ const MAX_BYTES = 90 * 1024 * 1024;
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const digest = /^[a-f0-9]{64}$/u;
 const validName = value => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,100}$/u.test(value);
+export const checkpointParents = checkpoint => checkpoint.version === 1
+  ? checkpoint.parent === null ? [] : [checkpoint.parent] : checkpoint.parents;
 
 /** Immutable encrypted checkpoint journal. Divergence is an explicit conflict, never last-write-wins. */
 export class CloudJournal {
@@ -17,9 +19,11 @@ export class CloudJournal {
   }
 
   encode(archive, parent = null) {
-    if (parent !== null && !digest.test(parent)) throw new Error('Invalid checkpoint parent.');
-    const payload = Buffer.from(JSON.stringify({ version: 1, workspace: this.workspace,
-      client: this.client, parent, archive }));
+    const parents = Array.isArray(parent) ? [...parent].sort() : parent === null ? [] : [parent];
+    if (parents.length > 8 || new Set(parents).size !== parents.length || parents.some(p => typeof p !== 'string' || !digest.test(p)))
+      throw new Error('Invalid checkpoint parent.');
+    const payload = Buffer.from(JSON.stringify({ version: 2, workspace: this.workspace,
+      client: this.client, parents, archive }));
     if (payload.length > 64 * 1024 * 1024) throw new Error('Cloud checkpoint exceeds 64 MiB.');
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', this.key, iv);
@@ -45,9 +49,12 @@ export class CloudJournal {
       const plain = Buffer.concat([decipher.update(Buffer.from(envelope.data, 'base64')), decipher.final()]);
       if (plain.length > 64 * 1024 * 1024) throw new Error();
       const checkpoint = JSON.parse(plain.toString('utf8'));
-      if (checkpoint.version !== 1 || checkpoint.workspace !== this.workspace ||
-          !validName(checkpoint.client) || (checkpoint.parent !== null && !digest.test(checkpoint.parent)) ||
+      if (![1, 2].includes(checkpoint.version) || checkpoint.workspace !== this.workspace ||
+          !validName(checkpoint.client) ||
           checkpoint.archive?.format !== 'hive-mind.archive.v1') throw new Error();
+      const parents = checkpointParents(checkpoint);
+      if (!Array.isArray(parents) || parents.length > 8 || new Set(parents).size !== parents.length ||
+          parents.some(p => typeof p !== 'string' || !digest.test(p))) throw new Error();
       return checkpoint;
     } catch {
       throw new Error('Cloud checkpoint authentication or format failed; local data was preserved.');
@@ -71,20 +78,21 @@ export class CloudJournal {
       checkpoints.set(id, checkpoint);
     }
     for (const checkpoint of checkpoints.values())
-      if (checkpoint.parent !== null && !checkpoints.has(checkpoint.parent))
+      if (checkpointParents(checkpoint).some(parent => !checkpoints.has(parent)))
         throw new Error('Cloud journal has a missing ancestor; retry without changing local data.');
-    const parents = new Set([...checkpoints.values()].map(c => c.parent));
+    const parents = new Set([...checkpoints.values()].flatMap(checkpointParents));
     const heads = [...checkpoints.keys()].filter(id => !parents.has(id)).sort();
     if (checkpoints.size && heads.length === 0) throw new Error('Invalid cloud checkpoint graph.');
     // A parent digest is authenticated, but enforce reachability independently of assumptions about hashes.
     const visited = new Set();
-    for (const head of heads) {
-      const chain = new Set();
-      for (let id = head; id !== null; id = checkpoints.get(id).parent) {
-        if (chain.has(id)) throw new Error('Invalid cloud checkpoint cycle.');
-        chain.add(id); visited.add(id);
-      }
-    }
+    const visit = (id, chain) => {
+      if (chain.has(id)) throw new Error('Invalid cloud checkpoint cycle.');
+      if (visited.has(id)) return;
+      const next = new Set(chain); next.add(id);
+      for (const parent of checkpointParents(checkpoints.get(id))) visit(parent, next);
+      visited.add(id);
+    };
+    for (const head of heads) visit(head, new Set());
     if (visited.size !== checkpoints.size) throw new Error('Unreachable cloud checkpoint history.');
     return { checkpoints, heads, conflict: heads.length > 1 };
   }
@@ -94,7 +102,8 @@ export class CloudJournal {
     const checkpoint = this.decode(prepared.id, prepared.bytes);
     const before = await this.inspect();
     if (before.checkpoints.has(prepared.id)) return { id: prepared.id, existing: true, conflict: before.conflict };
-    if (before.conflict || (before.heads[0] ?? null) !== checkpoint.parent)
+    const expected = [...checkpointParents(checkpoint)].sort();
+    if (JSON.stringify(before.heads) !== JSON.stringify(expected))
       throw new Error('Cloud head changed; retain the pending checkpoint and reconcile before publishing.');
     await this.transport.create(`hive-${prepared.id}.checkpoint`, prepared.bytes);
     const after = await this.inspect();
