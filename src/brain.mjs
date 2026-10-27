@@ -679,6 +679,7 @@ async function persistBytes(file, hash, bytes) {
       fail(409, "Managed asset storage conflict.");
   }
 }
+export { persistBytes as persistBrainBytes };
 export async function importBrainAsset(file, input) {
   if (
     !isObject(input) ||

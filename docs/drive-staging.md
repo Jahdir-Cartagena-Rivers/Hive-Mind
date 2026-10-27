@@ -30,6 +30,18 @@ the existing process lock and atomic local saves cannot coordinate two computers
 - Explicit staging CLI; export refuses a running local service, existing pending
   files are never overwritten, and restores refuse nonempty destinations. A live
   snapshot should use the existing authenticated `/v1/archive/export` endpoint.
+- Optional live compare-and-apply APIs, disabled by default. Start the source CLI
+  with `HIVE_MIND_CLOUD_SYNC=1` to allow full-token-only POST `/v1/cloud/snapshot`
+  and `/v1/cloud/apply`. Snapshot returns an archive plus revision. Apply validates
+  all bytes/links first, compares the current revision inside the existing mutation
+  queue, preserves the local stream identity and emits new local sequence events.
+  Concurrent edits, lost tombstones/receipts, unmarked deletions and forgotten-ID
+  resurrection reject. Unreferenced forgotten asset bytes are collected locally.
+- Resumable replica coordinator with an encrypted local base/pending cache. Explicit
+  `seed`, `join` or `resume` direction prevents accidental merging of unrelated
+  nonempty stores. Uncertain uploads reuse exact pending bytes; a new local edit
+  between transfer and apply rejects stale writes and is merged on retry. Two
+  synthetic service owners exchange independent edits and retain conflicts.
 
 ## Commands
 
@@ -56,18 +68,29 @@ injected token provider is the extension point for direct OAuth or Composio.
 Composio's chat tools are **not** automatically credentials for background scripts.
 No new Google project, OAuth client, token or service-account key was created.
 
+`node scripts/cloud-sync-once.mjs <private-config.json>` runs one resumable cycle.
+Config names `workspace`, `client`, `keyFile`, `tokenFile`, loopback `origin`,
+`cacheDirectory`, explicit `bootstrap`, and either native `folderId` or an absolute
+reviewed `transportModule` exporting `createTransport(transportOptions)`. An adapter
+implements async `list(): {id,name}[]`, `read(id): Buffer`, `create(name,bytes)`.
+Do not load executable adapter paths from memories or cloud payloads. The routine
+does not schedule itself, export tokens, modify installed apps or choose credentials.
+
 ## Required before canonical migration
 
 1. Persistent protected authentication on both hosts; verify exact Drive identity,
    folder permissions, scheduled execution and restart recovery. A short-lived
    access token alone is insufficient. Remote routines reportedly run no more
    frequently than every five minutes; measure this rather than claiming live sync.
-2. Integrate the tested three-way merge into a continuous client, implement
-   explicit resolution of reported competing edits and qualify dependent-record
+2. Qualify the resumable coordinator with the actual remote Composio transport,
+   implement explicit resolution of reported competing edits and qualify dependent-record
    deletion, multi-parent/criss-cross ancestry and stale clients. The staging CLI
    reconciles exactly two heads with one unique common base and writes a pending
-   checkpoint for a separate publish. It does not modify a live profile. Local
-   service writes and cloud replay must share the existing mutation queue.
+   checkpoint for a separate publish. Only the opt-in live service API may modify
+   a running profile; it shares the existing mutation queue. Installed desktop
+   configuration, credential provisioning and scheduled product operation remain
+   unqualified. A new client starts with an empty dedicated profile, never a clone
+   that can silently claim ownership of active tasks.
 3. Forget-retention protocol. Current immutable checkpoints retain old encrypted
    content, so logical tombstones alone do not satisfy erasure. No real memory
    migration until retained checkpoints/assets, stale clients and key lifecycle

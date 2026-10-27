@@ -44,6 +44,7 @@ import { HiveLocalEngine } from "./core/localEngine.ts";
 import { readHiveConfig } from "./core/config.ts";
 import { ownStateDirectory } from "./ownership.mjs";
 import { createPresence, PresenceError } from "./presence.mjs";
+import { liveCloudSnapshot, applyLiveCloudArchive } from './cloud-live.mjs';
 
 const MAX_BODY = 64 * 1024;
 const readOperations = new Set([
@@ -156,7 +157,8 @@ async function readBody(request, limit = MAX_BODY) {
   }
 }
 
-export async function startHiveMind({ stateDirectory, token, readToken, port = 8788 }) {
+export async function startHiveMind({ stateDirectory, token, readToken, port = 8788, cloudSyncEnabled = false }) {
+  if (typeof cloudSyncEnabled !== 'boolean') throw new Error('Invalid cloud sync enablement.');
   if (typeof token !== "string" || token.length < 32 || /\s/u.test(token))
     throw new Error("HIVE_MIND_TOKEN must contain at least 32 non-whitespace characters.");
   if (
@@ -429,6 +431,7 @@ data: ${JSON.stringify({ presence: presence.list() })}
         return respond(response, 200, reply);
       }
       const operations = new Set([
+        ...(cloudSyncEnabled ? ['/v1/cloud/snapshot', '/v1/cloud/apply'] : []),
         "/v1/graph",
         "/v1/memory",
         "/v1/context",
@@ -462,12 +465,18 @@ data: ${JSON.stringify({ presence: presence.list() })}
           ? 14 * 1024 * 1024 + 4096
           : url.pathname === "/v1/files"
             ? 35 * 1024 * 1024 + 4096
-            : url.pathname === "/v1/archive/import"
+            : url.pathname === "/v1/archive/import" || url.pathname === '/v1/cloud/apply'
               ? 64 * 1024 * 1024
               : MAX_BODY,
       );
       let result;
       switch (url.pathname) {
+        case '/v1/cloud/snapshot':
+          result = await liveCloudSnapshot(file);
+          break;
+        case '/v1/cloud/apply':
+          result = await applyLiveCloudArchive(file, body);
+          break;
         case "/v1/brain":
           result = await brainSnapshot(file, body);
           break;

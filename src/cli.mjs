@@ -22,6 +22,7 @@ if (args.includes("--help")) {
       port: values.has("--port") ? Number(values.get("--port")) : 8788,
       token: process.env.HIVE_MIND_TOKEN,
       readToken: process.env.HIVE_MIND_READ_TOKEN,
+      cloudSyncEnabled: process.env.HIVE_MIND_CLOUD_SYNC === '1',
     });
     console.log(
       JSON.stringify({
