@@ -252,7 +252,7 @@ export async function startHiveMind({ stateDirectory, token, readToken, port = 8
         return;
       }
       if (request.method === "GET" && url.pathname === "/v1/events") {
-        const head = await brainChanges(file);
+        const head = (await readHiveMind(file)).continuity ?? newContinuity();
         const lastId = request.headers["last-event-id"];
         const parts = typeof lastId === "string" ? lastId.split(":") : [];
         if (parts.length > 2) throw new RequestError(400, "Invalid change cursor.");
@@ -326,7 +326,7 @@ data: ${JSON.stringify({ presence: presence.list() })}
         return respond(response, 200, {
           ...(await runtime.snapshot()),
           continuity: {
-            sequence: (await brainChanges(file)).sequence,
+            sequence: (await readHiveMind(file)).continuity?.sequence ?? 0,
             records: (await readHiveMind(file)).continuity?.records.length ?? 0,
           },
         });

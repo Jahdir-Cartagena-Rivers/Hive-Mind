@@ -292,3 +292,21 @@ test("project saves explain missing project names and a corrected retry syncs du
   assert.equal(general.status, 200);
   assert.equal(general.value.memory.project, null);
 });
+
+test('status and fresh event subscriptions work after old change cursors expire', async t => {
+  const f = await fixture(t), file = path.join(f.directory, 'hive-mind.json');
+  const store = JSON.parse(await fs.readFile(file, 'utf8'));
+  store.continuity.sequence = 1200;
+  store.continuity.events = [{sequence:1200,id:'synthetic-retained-event',kind:'memory',revision:null,at:'2026-10-27T00:00:00Z'}];
+  await fs.writeFile(file,JSON.stringify(store));
+  const status = await f.request('/v1/status');
+  assert.equal(status.status,200);assert.equal(status.value.continuity.sequence,1200);
+  assert.equal((await f.request('/v1/changes',{after:0})).status,409);
+  assert.equal((await f.request('/v1/changes',{after:1199})).status,200);
+  const abort = new AbortController();
+  const stream = await fetch(f.origin()+'/v1/events',{headers:{authorization:`Bearer ${f.token}`},signal:abort.signal});
+  assert.equal(stream.status,200);await stream.body.getReader().read();abort.abort();
+  const stale = await fetch(f.origin()+'/v1/events',{headers:{authorization:`Bearer ${f.token}`,'last-event-id':`${store.continuity.streamId}:0`}});
+  assert.equal(stale.status,409);
+  assert.equal((await f.request('/v1/status',undefined,'invalid-token')).status,401);
+});

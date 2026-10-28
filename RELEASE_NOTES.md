@@ -1,4 +1,9 @@
-# Hive Mind 0.5.1
+# Hive Mind 0.5.2
+
+- Keep status available after the retained change-event window advances.
+- Start fresh event subscriptions at the current head while still rejecting expired replay cursors.
+
+## Previous release: 0.5.1
 
 - Keep each host's consumption cursor and active client context local during sync.
 - Add account-bound sealed credential attachments for private application consumers.
