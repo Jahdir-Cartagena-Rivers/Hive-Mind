@@ -9,6 +9,7 @@ import { CloudFileReplica } from '../src/cloud-file-replica.mjs';
 import { startHiveMind } from '../src/service.mjs';
 import { liveCloudSnapshot, applyLiveCloudArchive } from '../src/cloud-live.mjs';
 import { rememberHiveFact, forgetHiveFact, readHiveMind } from '../src/core/store.ts';
+import { saveBrainRecord } from '../src/brain.mjs';
 
 const fact = (subject, value) => ({ scope: 'general', subject, fact: value, sourceThreadId: 'synthetic-file-test' });
 async function fixture(t) {
@@ -56,6 +57,36 @@ test('seed, join and pull exchange independent edits with no redundant upload or
   const reads = f.remote.bodyReads;
   assert.equal((await a.replica.syncOnce()).status, 'current'); assert.equal(f.remote.writes, writes);
   assert.equal(f.remote.bodyReads, reads, 'unchanged background polling must not redownload the full archive');
+});
+
+test('client consumption remains host-local across join, independent cursor updates and memory transfers', async t => {
+  const f = await fixture(t), a = await f.client('desktop-cursors', 'seed'), b = await f.client('auro-cursors', 'join');
+  await rememberHiveFact(a.file, fact('cursor fixture', 'one'));
+  let state = await readHiveMind(a.file);
+  const input = { kind: 'client', scope: 'general', title: 'Synthetic reader',
+    source: {threadId:'synthetic-reader',provider:'test',type:'agent'},
+    data: {consumedSequence:1,consumedStreamId:state.continuity.streamId,deliveredIds:[state.memories[0].id],usedIds:[]} };
+  const client = await saveBrainRecord(a.file,input);
+  assert.equal((await a.replica.syncOnce()).status,'synced');
+  assert.equal((await b.replica.syncOnce()).status,'synced');assert.equal(f.remote.writes,1);
+  state=await readHiveMind(b.file);let local=state.continuity.records.find(r=>r.id===client.id);
+  assert.equal(local.data.consumedSequence,0);assert.equal(local.data.consumedStreamId,state.continuity.streamId);
+  assert.deepEqual(local.data.deliveredIds,[]);
+  await saveBrainRecord(b.file,{...input,id:local.id,revision:local.revision,data:{...local.data,consumedSequence:1,usedIds:[state.memories[0].id]}});
+  assert.equal((await b.replica.syncOnce()).status,'current');assert.equal(f.remote.writes,1,'cursor changes do not upload another archive');
+  await rememberHiveFact(b.file,fact('independent remote note','two'));
+  await b.replica.syncOnce();await a.replica.syncOnce();await b.replica.syncOnce();
+  const desktop=await readHiveMind(a.file),auro=await readHiveMind(b.file);
+  assert.equal(desktop.memories.length,2);assert.equal(auro.memories.length,2);
+  const desktopClient=desktop.continuity.records.find(r=>r.id===client.id),auroClient=auro.continuity.records.find(r=>r.id===client.id);
+  assert.equal(desktopClient.data.consumedSequence,1);assert.deepEqual(desktopClient.data.deliveredIds,input.data.deliveredIds);
+  assert.deepEqual(desktopClient.data.usedIds,[]);assert.equal(auroClient.data.usedIds.length,1);
+  assert.notEqual(desktopClient.data.consumedStreamId,auroClient.data.consumedStreamId);
+  const writes=f.remote.writes;assert.equal((await a.replica.syncOnce()).status,'current');assert.equal(f.remote.writes,writes);
+  await forgetHiveFact(b.file,auro.memories.find(m=>m.subject==='cursor fixture').id);
+  await b.replica.syncOnce();await a.replica.syncOnce();
+  const afterForget=(await readHiveMind(a.file)).continuity.records.find(r=>r.id===client.id);
+  assert.deepEqual(afterForget.data.deliveredIds,[],'local cursor cannot retain references to remotely forgotten content');
 });
 
 test('a stale conditional write rebases independent edits from durable pending state', async t => {

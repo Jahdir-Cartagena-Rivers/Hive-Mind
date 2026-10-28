@@ -1,4 +1,15 @@
-# Hive Mind 0.5.0
+# Hive Mind 0.5.1
+
+- Keep each host's consumption cursor and active client context local during sync.
+- Add account-bound sealed credential attachments for private application consumers.
+- Add a headless service with the same protected background sync worker.
+
+Credential attachments require explicit host-owned account, asset and application
+bindings. Passwords remain outside searchable memory and are decrypted only in a
+private application pipe. Installation does not provision credentials or configure
+a remote supervisor automatically.
+
+## Previous release: 0.5.0
 
 - Add opt-in encrypted Drive synchronization through an explicitly selected Composio account.
 - Merge independent edits and report conflicting corrections without silently overwriting them.

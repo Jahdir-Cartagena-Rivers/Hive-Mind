@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { fingerprint, newContinuity } from './core/continuity.ts';
 import { renameReplacing } from './core/files.ts';
 import { checkpointId, validateCloudArchive } from './cloud-archive.mjs';
-import { cloudMergeBase, mergeCloudArchives } from './cloud-merge.mjs';
+import { cloudMergeBase, mergeCloudArchives, cloudSyncRecord } from './cloud-merge.mjs';
 import { ownStateDirectory } from './ownership.mjs';
 import { validateStateDirectory } from './service.mjs';
 import { collectCloudErasures, redactCloudArchive } from './cloud-erasure.mjs';
@@ -14,7 +14,7 @@ const sorted = (rows, key) => [...rows].sort((a, b) => key(a).localeCompare(key(
 export const archiveContentDigest = archive => fingerprint({
   memories: sorted(archive.store.memories, r => r.id), forgotten: [...(archive.store.forgotten ?? [])].sort(),
   forgottenMemoryIds: [...(archive.store.forgottenMemoryIds ?? [])].sort(),
-  records: sorted(archive.store.continuity.records, r => r.id),
+  records: sorted(archive.store.continuity.records.map(cloudSyncRecord), r => r.id),
   receipts: sorted(archive.store.continuity.receipts, r => r.key),
   forgottenRecords: [...archive.store.continuity.forgotten].sort(), images: archive.images,
 });

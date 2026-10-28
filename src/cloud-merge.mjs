@@ -5,6 +5,14 @@ import { hashHiveForgetIdentity, isHiveMemoryForgotten } from './core/store.ts';
 const equal = (a, b) => a === undefined || b === undefined ? a === b : fingerprint(a) === fingerprint(b);
 const identity = memory => JSON.stringify([memory.scope, (memory.project ?? '').trim().toLocaleLowerCase(), memory.subject.trim().toLocaleLowerCase()]);
 
+/** Consumption cursors and active context belong to the local service stream, not another host. */
+export function cloudSyncRecord(record) {
+  if (record.kind !== 'client') return record;
+  const data = { consumedSequence: 0, consumedStreamId: 'cloud-local-client', deliveredIds: [], usedIds: [] };
+  const body = Object.fromEntries(['kind', 'scope', 'project', 'title', 'source'].map(k => [k, record[k]]));
+  return { ...record, data, history: [], updatedAt: record.createdAt, revision: fingerprint({ ...body, data }) };
+}
+
 /** A criss-cross or unrelated history must not select an arbitrary merge base. */
 export function cloudMergeBase({ checkpoints, heads }) {
   if (heads.length !== 2) throw new Error('Reconciliation currently requires exactly two divergent heads.');
@@ -67,7 +75,7 @@ export function mergeCloudArchives(base, left, right) {
   const forgottenRecords = [...new Set(states.flatMap(s => s.continuity.forgotten))].sort();
   const memories = mergeRows('memory', ...states.map(s => s.memories), identity,
     m => forgottenMemoryIds.includes(m.id) || isHiveMemoryForgotten(forgotten, m));
-  const records = mergeRows('record', ...states.map(s => s.continuity.records), r => r.id, r => forgottenRecords.includes(r.id));
+  const records = mergeRows('record', ...states.map(s => s.continuity.records.map(cloudSyncRecord)), r => r.id, r => forgottenRecords.includes(r.id));
   const receipts = mergeRows('receipt', ...states.map(s => s.continuity.receipts), r => r.key);
   // Distinct subjects must never accidentally acquire one UUID during a merge.
   if (new Set(memories.map(m => m.id)).size !== memories.length) conflicts.push({ table: 'memory', id: 'duplicate-id' });

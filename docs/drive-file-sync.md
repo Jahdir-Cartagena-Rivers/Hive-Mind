@@ -154,3 +154,9 @@ turn per cycle. A host-specific supervisor or wake routine must restart it after
 machine shutdown; this command does not install an operating-system service or
 guarantee a provider's wake schedule. Keep its launch command fixed and inherit
 the protected credential environment directly, never expand secrets into argv.
+
+Client consumption cursors, delivered/used IDs and active task context belong to
+each host's local service stream. Cloud snapshots carry normalized client metadata
+and preserve existing local cursors on apply. A new host starts those cursors at
+zero in its own stream. Cursor-only updates do not create cloud writes or conflict
+with another host's reader; durable memories, tasks and references still merge.

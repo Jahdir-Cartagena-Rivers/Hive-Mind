@@ -3,12 +3,17 @@ import path from 'node:path';
 import { BrainError, exportBrain, restoreBrain, persistBrainBytes } from './brain.mjs';
 import { fingerprint } from './core/continuity.ts';
 import { mutateHiveStore, readHiveMind, hashHiveForgetIdentity, isHiveMemoryForgotten } from './core/store.ts';
+import { cloudSyncRecord } from './cloud-merge.mjs';
 
 const memoryKey = memory => JSON.stringify([memory.scope, (memory.project ?? '').trim().toLocaleLowerCase(), memory.subject.trim().toLocaleLowerCase()]);
 
 /** Snapshot assets and metadata under the existing owner mutation queue. */
 export function liveCloudSnapshot(file) {
-  return mutateHiveStore(file, async store => [store, { archive: await exportBrain(file), revision: fingerprint(store) }]);
+  return mutateHiveStore(file, async store => {
+    const archive = await exportBrain(file);
+    archive.store.continuity.records = archive.store.continuity.records.map(cloudSyncRecord);
+    return [store, { archive, revision: fingerprint(store) }];
+  });
 }
 
 /** Compare-and-apply a validated cloud merge while preserving local stream identity and new edits. */
@@ -56,10 +61,18 @@ export async function applyLiveCloudArchive(file, { archive, expectedRevision })
         !incoming.continuity.records.some(next => next.kind === 'asset' && next.data.hash === r.data.hash)).map(r => r.data.hash);
       for (const [hash, b64] of Object.entries(archive.images))
         await persistBrainBytes(file, hash, Buffer.from(b64, 'base64'));
-      const records = incoming.continuity.records.map(record => record.kind === 'client' ? {
-        ...record, history: [], data: { ...record.data, consumedSequence: 0,
-          consumedStreamId: current.continuity.streamId, deliveredIds: [], usedIds: [] },
-      } : record);
+      const retainedIds = new Set([...incoming.memories, ...incoming.continuity.records].map(r => r.id));
+      const records = incoming.continuity.records.map(record => {
+        if (record.kind !== 'client') return record;
+        const existing = current.continuity.records.find(r => r.id === record.id && r.kind === 'client');
+        const data = existing?.data.consumedStreamId === current.continuity.streamId ? structuredClone(existing.data) : {
+          consumedSequence: 0, consumedStreamId: current.continuity.streamId, deliveredIds: [], usedIds: [] };
+        for (const key of ['deliveredIds', 'usedIds']) if (Array.isArray(data[key])) data[key] = data[key].filter(id => retainedIds.has(id));
+        if (data.taskId && !retainedIds.has(data.taskId)) delete data.taskId;
+        const body = Object.fromEntries(['kind', 'scope', 'project', 'title', 'source'].map(k => [k, record[k]]));
+        return { ...record, history: [], data, revision: fingerprint({ ...body, data }),
+          updatedAt: existing?.updatedAt ?? record.updatedAt };
+      });
       const next = { ...incoming, continuity: { ...incoming.continuity, records,
         streamId: current.continuity.streamId, sequence: current.continuity.sequence, events: current.continuity.events } };
       return [next, { applied: true }];
