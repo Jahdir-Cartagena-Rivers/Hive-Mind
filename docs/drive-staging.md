@@ -1,5 +1,10 @@
 # Drive-backed store: isolated staging
 
+The later [conditional single-file prototype](drive-file-sync.md) uses capabilities
+verified through Composio's authenticated API proxy. It avoids this journal's
+whole-history replay and unknown-part cleanup problem. Both remain source staging;
+do not mix their caches or assume an installed/canonical migration has occurred.
+
 User decision2026-10-27: **Forget must also erase the selected content from retained
 Drive history**, keeping content-free deletion markers to block stale resurrection.
 Offline clients apply it when they reconnect. Selecting this policy does not itself

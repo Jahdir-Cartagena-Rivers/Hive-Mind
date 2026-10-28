@@ -18,7 +18,10 @@ export const unionErasures = (...rules) => validateErasures({
 /** Convert observed tombstones to permanent content-free IDs, across every retained revision. */
 export function collectCloudErasures(archives, previous = emptyErasures(), activeArchives = archives) {
   // Only current resolved tombstones select legacy IDs. Old tombstones must not erase an explicit later re-remember.
-  const markers = new Set(activeArchives.flatMap(a => a.store.forgotten ?? []).map(hashHiveForgetIdentity));
+  // Current clients carry exact permanent IDs. Subject-only legacy fallback must not select
+  // a new UUID deliberately remembered after an observed deletion.
+  const markers = new Set(activeArchives.filter(a => !(a.store.forgottenMemoryIds?.length))
+    .flatMap(a => a.store.forgotten ?? []).map(hashHiveForgetIdentity));
   const records = new Set([...previous.recordIds, ...activeArchives.flatMap(a => a.store.continuity.forgotten)]);
   // A relation removed by an existing forget may exist only in an older checkpoint.
   let changed;

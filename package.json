@@ -9,8 +9,8 @@
   "main": "app/main.mjs",
   "scripts": {
     "start": "node src/cli.mjs",
-    "test": "node --test test/service.test.mjs test/continuity.test.mjs test/presence.test.mjs test/visual.test.mjs test/publication.test.mjs test/updater.test.mjs test/cloud-journal.test.mjs test/cloud-archive.test.mjs test/cloud-merge.test.mjs test/cloud-live.test.mjs test/cloud-replica.test.mjs test/cloud-chunks.test.mjs test/composio-drive-transport.test.mjs test/cloud-erasure.test.mjs && vp test run",
-    "test:cloud": "node --test test/cloud-journal.test.mjs test/cloud-archive.test.mjs test/cloud-merge.test.mjs test/cloud-live.test.mjs test/cloud-replica.test.mjs test/cloud-chunks.test.mjs test/composio-drive-transport.test.mjs test/cloud-erasure.test.mjs",
+    "test": "node --test test/service.test.mjs test/continuity.test.mjs test/presence.test.mjs test/visual.test.mjs test/publication.test.mjs test/updater.test.mjs test/cloud-journal.test.mjs test/cloud-archive.test.mjs test/cloud-merge.test.mjs test/cloud-live.test.mjs test/cloud-replica.test.mjs test/cloud-chunks.test.mjs test/composio-drive-transport.test.mjs test/cloud-erasure.test.mjs test/cloud-file-replica.test.mjs test/composio-drive-file.test.mjs && vp test run",
+    "test:cloud": "node --test test/cloud-journal.test.mjs test/cloud-archive.test.mjs test/cloud-merge.test.mjs test/cloud-live.test.mjs test/cloud-replica.test.mjs test/cloud-chunks.test.mjs test/composio-drive-transport.test.mjs test/cloud-erasure.test.mjs test/cloud-file-replica.test.mjs test/composio-drive-file.test.mjs",
     "test:service": "node --test test/service.test.mjs",
     "test:continuity": "node --test test/continuity.test.mjs",
     "test:desktop": "node scripts/smoke-continuity.mjs",
