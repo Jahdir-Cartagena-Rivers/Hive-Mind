@@ -880,7 +880,8 @@ async function importBrain(file, archive) {
       store.memories.length ||
       current.records.length ||
       current.forgotten.length ||
-      store.forgotten?.length
+      store.forgotten?.length ||
+      store.forgottenMemoryIds?.length
     )
       fail(
         409,

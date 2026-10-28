@@ -1,5 +1,6 @@
 import { fingerprint, newContinuity } from './core/continuity.ts';
 import { checkpointParents } from './cloud-journal.mjs';
+import { hashHiveForgetIdentity, isHiveMemoryForgotten } from './core/store.ts';
 
 const equal = (a, b) => a === undefined || b === undefined ? a === b : fingerprint(a) === fingerprint(b);
 const identity = memory => JSON.stringify([memory.scope, (memory.project ?? '').trim().toLocaleLowerCase(), memory.subject.trim().toLocaleLowerCase()]);
@@ -33,6 +34,7 @@ export function mergeCloudArchives(base, left, right) {
     const maps = [before, a, b].map(rows => {
       const map = new Map();
       for (const row of rows) {
+        if (forbidden(row)) continue;
         const id = key(row);
         if (map.has(id)) throw new Error(`Duplicate ${table} identity in cloud archive.`);
         map.set(id, row);
@@ -43,7 +45,6 @@ export function mergeCloudArchives(base, left, right) {
     const merged = [];
     for (const id of ids) {
       const [old, one, two] = maps.map(map => map.get(id));
-      if ([old, one, two].some(row => row && forbidden(row))) continue;
       const choice = equal(one, two) ? one : equal(one, old) ? two : equal(two, old) ? one : undefined;
       if (!equal(one, two) && !equal(one, old) && !equal(two, old)) {
         // Return IDs only. The unchanged input archives retain all conflicting versions.
@@ -60,10 +61,12 @@ export function mergeCloudArchives(base, left, right) {
     if (archive?.format !== 'hive-mind.archive.v1' || archive.store?.version !== 1 || !archive.store.continuity)
       throw new Error('Cloud merge requires three validated full archives.');
   const states = [base, left, right].map(a => a.store);
-  const forgotten = mergeSet(...states.map(s => s.forgotten ?? []));
+  const forgotten = mergeSet(...states.map(s => (s.forgotten ?? []).map(hashHiveForgetIdentity)));
+  const forgottenMemoryIds = [...new Set(states.flatMap(s => s.forgottenMemoryIds ?? []))].sort();
   // Brain record IDs remain permanently forbidden by the existing store contract.
   const forgottenRecords = [...new Set(states.flatMap(s => s.continuity.forgotten))].sort();
-  const memories = mergeRows('memory', ...states.map(s => s.memories), identity, m => forgotten.includes(identity(m)));
+  const memories = mergeRows('memory', ...states.map(s => s.memories), identity,
+    m => forgottenMemoryIds.includes(m.id) || isHiveMemoryForgotten(forgotten, m));
   const records = mergeRows('record', ...states.map(s => s.continuity.records), r => r.id, r => forgottenRecords.includes(r.id));
   const receipts = mergeRows('receipt', ...states.map(s => s.continuity.receipts), r => r.key);
   // Distinct subjects must never accidentally acquire one UUID during a merge.
@@ -76,6 +79,6 @@ export function mergeCloudArchives(base, left, right) {
       throw new Error('Cloud merge has a missing or conflicting retained asset.');
     images[record.data.hash] = candidates[0];
   }
-  return { archive: { format: 'hive-mind.archive.v1', store: { version: 1, memories, forgotten,
+  return { archive: { format: 'hive-mind.archive.v1', store: { version: 1, memories, forgotten, forgottenMemoryIds,
     continuity: { ...newContinuity(), records, receipts, forgotten: forgottenRecords } }, images }, conflicts };
 }

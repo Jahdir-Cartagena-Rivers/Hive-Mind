@@ -58,7 +58,7 @@ export class DriveTransport {
   }
 
   async create(name, bytes) {
-    if (!/^(?:hive-[a-f0-9]{64}\.checkpoint|hive-part-[a-f0-9]{64}\.blob)$/u.test(name) || bytes.length > 90 * 1024 * 1024)
+    if (!/^(?:hive-[a-f0-9]{64}\.(?:checkpoint|erasure)|hive-part-[a-f0-9]{64}\.blob)$/u.test(name) || bytes.length > 90 * 1024 * 1024)
       throw new Error('Invalid Drive checkpoint upload.');
     const initial = await this.request('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name', {
       method: 'POST', headers: { 'content-type': 'application/json; charset=UTF-8',
@@ -73,5 +73,16 @@ export class DriveTransport {
       headers: { 'content-type': 'application/octet-stream', 'content-length': String(bytes.length) }, body: bytes })).json();
     if (typeof result.id !== 'string') throw new Error('Drive upload returned no file ID; verify before retrying.');
     return result;
+  }
+
+  async remove(id, name) {
+    if (!/^[a-zA-Z0-9_-]{1,200}$/u.test(id) ||
+        !/^(?:hive-[a-f0-9]{64}\.(?:checkpoint|erasure)|hive-part-[a-f0-9]{64}\.blob)$/u.test(name))
+      throw new Error('Invalid managed deletion target.');
+    const meta = await (await this.request(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,name,parents,mimeType,trashed`)).json();
+    if (meta.id === this.folderId || meta.name !== name || !meta.parents?.includes(this.folderId) || meta.trashed ||
+        meta.mimeType?.startsWith('application/vnd.google-apps.')) throw new Error('Drive deletion target changed or is outside the managed folder.');
+    await this.request(`https://www.googleapis.com/drive/v3/files/${id}`, { method: 'DELETE' });
+    if ((await this.list()).some(row => row.id === id)) throw new Error('Drive deletion remains pending.');
   }
 }

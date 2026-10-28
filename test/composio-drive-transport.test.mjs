@@ -100,3 +100,31 @@ test('unexpected storage hosts reject before uploading any bytes', async () => {
   await assert.rejects(transport.create(folder, 'fixture.bin', bytes), /Unrecognized/);
   assert.equal(egress, false);
 });
+
+test('permanent deletion verifies the exact managed blob and refuses folders, renamed or foreign targets', async () => {
+  const name = `hive-${'a'.repeat(64)}.checkpoint`; let deletes = 0;
+  let meta = { id: fileId, name, parents: [folder], mimeType: 'application/octet-stream' };
+  const transport = new ComposioDriveTransport({ ...options, retries: 2, fetchImpl: async (url, init) => {
+    const address = String(url), body = JSON.parse(init.body);
+    if (address.endsWith('GOOGLEDRIVE_GET_FILE_METADATA')) return success(meta);
+    if (address.endsWith('GOOGLEDRIVE_GOOGLE_DRIVE_DELETE_FOLDER_OR_FILE_ACTION')) {
+      deletes++; assert.deepEqual(body.arguments, { fileId, supportsAllDrives: false }); return success({});
+    }
+    if (address.endsWith('GOOGLEDRIVE_FIND_FILE')) return success({ files: [] });
+    assert.fail('unexpected request');
+  } });
+  await transport.remove(folder, fileId, name); assert.equal(deletes, 1);
+  for (const change of [{ parents: ['foreign_folder'] }, { name: 'changed.bin' },
+    { mimeType: 'application/vnd.google-apps.folder' }, { id: folder }]) {
+    meta = { id: fileId, name, parents: [folder], mimeType: 'application/octet-stream', ...change };
+    await assert.rejects(transport.remove(folder, fileId, name), /outside|identity changed/);
+  }
+  assert.equal(deletes, 1);
+  meta = { id: fileId, name, parents: [folder] };
+  transport.fetch = async (url) => {
+    if (String(url).endsWith('GOOGLEDRIVE_GET_FILE_METADATA')) return success(meta);
+    deletes++; return new Response('private provider body', { status: 503 });
+  };
+  await assert.rejects(transport.remove(folder, fileId, name), /503/);
+  assert.equal(deletes, 2, 'uncertain DELETE must not be blindly replayed');
+});

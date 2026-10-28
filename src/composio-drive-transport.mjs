@@ -14,7 +14,9 @@ const TRANSIENT = new Set([408, 429, 500, 502, 503, 504]);
 const ID = /^[A-Za-z0-9_-]{10,200}$/u;
 const FILE_FIELDS = "id,name,parents,size,md5Checksum,mimeType,createdTime,modifiedTime,trashed";
 const MAX_UPLOAD = 5 * 1024 * 1024; // GOOGLEDRIVE_UPLOAD_FILE limit
-const TOOLS = new Set(['GOOGLEDRIVE_GET_FILE_METADATA', 'GOOGLEDRIVE_FIND_FILE', 'GOOGLEDRIVE_DOWNLOAD_FILE', 'GOOGLEDRIVE_UPLOAD_FILE']);
+const DELETE = 'GOOGLEDRIVE_GOOGLE_DRIVE_DELETE_FOLDER_OR_FILE_ACTION';
+const MANAGED_NAME = /^(?:hive-[a-f0-9]{64}\.(?:checkpoint|erasure)|hive-part-[a-f0-9]{64}\.blob)$/u;
+const TOOLS = new Set(['GOOGLEDRIVE_GET_FILE_METADATA', 'GOOGLEDRIVE_FIND_FILE', 'GOOGLEDRIVE_DOWNLOAD_FILE', 'GOOGLEDRIVE_UPLOAD_FILE', DELETE]);
 function storageUrl(value) {
   const url = new URL(value);
   if (url.protocol !== 'https:' || url.username || url.password || url.hash || (url.port && url.port !== '443') ||
@@ -87,7 +89,7 @@ export class ComposioDriveTransport {
       headers: this.headers(),
       body: JSON.stringify({ connected_account_id: this.connectedAccountId, user_id: this.userId,
         version: TOOL_VERSION, arguments: args }),
-    }, { retry: slug === 'GOOGLEDRIVE_UPLOAD_FILE' ? false : retry, slug });
+    }, { retry: slug === 'GOOGLEDRIVE_UPLOAD_FILE' || slug === DELETE ? false : retry, slug });
     const body = await response.json();
     const logId = typeof body?.log_id === 'string' && /^log_[A-Za-z0-9_-]{1,100}$/u.test(body.log_id) ? body.log_id : undefined;
     if (logId) this.lastLogId = logId;
@@ -103,6 +105,18 @@ export class ComposioDriveTransport {
     const metadata = await this.execute("GOOGLEDRIVE_GET_FILE_METADATA", { fileId, fields: FILE_FIELDS });
     if (metadata?.id !== fileId) throw new TransportError('Drive metadata identity changed.');
     return metadata;
+  }
+
+  /** Permanent deletion is limited to an exact managed blob in the configured folder. */
+  async remove(folderId, fileId, expectedName) {
+    if (!ID.test(folderId) || !MANAGED_NAME.test(expectedName)) throw new TransportError('Invalid managed deletion target.');
+    const meta = await this.metadata(fileId);
+    if (meta.id === folderId || !(meta.parents ?? []).includes(folderId) || meta.name !== expectedName ||
+        meta.mimeType?.startsWith('application/vnd.google-apps.') || meta.trashed)
+      throw new TransportError('Deletion target is outside the managed folder or changed.');
+    await this.execute(DELETE, { fileId, supportsAllDrives: false }, { retry: false });
+    if ((await this.list(folderId, { name: expectedName })).some(row => row.id === fileId))
+      throw new TransportError('Permanent deletion is not yet visible; history cleanup remains pending.');
   }
 
   /** All non-trashed children of folderId (paginated), optionally filtered by exact name. */
@@ -218,5 +232,8 @@ export function createTransport({ folderId, userId, connectedAccountId, fetchImp
   if (typeof folderId !== 'string' || !ID.test(folderId)) throw new TransportError('A private Drive folder ID is required.');
   const transport = new ComposioDriveTransport({ userId, connectedAccountId, fetchImpl });
   return { list: () => transport.list(folderId), read: id => transport.read(id, { folderId }),
-    create: (name, bytes) => transport.create(folderId, name, bytes) };
+    create: (name, bytes) => {
+      if (!MANAGED_NAME.test(name)) throw new TransportError('Invalid managed upload name.');
+      return transport.create(folderId, name, bytes);
+    }, remove: (id, name) => transport.remove(folderId, id, name) };
 }

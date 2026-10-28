@@ -17,7 +17,8 @@ async function fixture(t) {
   const files = [], key = randomBytes(32), services = [];
   const transport = { async list() { return files.map(f => ({ id: f.id, name: f.name })); },
     async read(id) { return files.find(f => f.id === id).bytes; },
-    async create(name, bytes) { files.push({ name, bytes, id: String(files.length) }); } };
+    async create(name, bytes) { files.push({ name, bytes, id: randomBytes(16).toString('hex') }); },
+    async remove(id, name) { const index = files.findIndex(f => f.id === id && f.name === name); assert.ok(index >= 0); files.splice(index, 1); } };
   t.after(async () => { for (const service of services) await service.close(); await fs.rm(root, { recursive: true, force: true }); });
   const client = async (name, bootstrap) => {
     const directory = path.join(root, name);
@@ -98,8 +99,64 @@ test('remote forget defeats a stale client correction and prevents resurrection'
   await a.replica.syncOnce(); await b.replica.syncOnce();
   await rememberHiveFact(b.file, fact('shared', 'stale correction'));
   await forgetHiveFact(a.file, original.id); await a.replica.syncOnce();
-  assert.equal((await b.replica.syncOnce()).status, 'synced');
+  assert.ok(['synced', 'current'].includes((await b.replica.syncOnce()).status));
   assert.deepEqual((await readHiveMind(b.file)).memories, []);
+  const cloud = await a.journal.inspect();
+  assert.ok(cloud.erasures.memoryIds.includes(original.id));
+  assert.equal(cloud.candidates.some(row => row.checkpoint.archive.store.memories.some(m => m.id === original.id)), false);
+});
+
+test('explicit new remember after observed forget survives old history and permanent ID markers', async t => {
+  const f = await fixture(t), a = await f.client('desktop', 'seed'), b = await f.client('auro', 'join');
+  const original = await rememberHiveFact(a.file, fact('shared', 'before'));
+  await a.replica.syncOnce(); await b.replica.syncOnce();
+  await forgetHiveFact(a.file, original.id); await a.replica.syncOnce(); await b.replica.syncOnce();
+  const replacement = await rememberHiveFact(b.file, fact('shared', 'explicit new statement'));
+  assert.notEqual(replacement.id, original.id);
+  await b.replica.syncOnce(); await a.replica.syncOnce();
+  assert.deepEqual((await readHiveMind(a.file)).memories.map(m => m.id), [replacement.id]);
+  assert.ok((await a.journal.inspect()).erasures.memoryIds.includes(original.id));
+  assert.equal((await a.journal.inspect()).erasures.memoryIds.includes(replacement.id), false);
+});
+
+test('an offline pending upload is sanitized on reconnect without losing unrelated unsent edits', async t => {
+  const f = await fixture(t), a = await f.client('desktop', 'seed'), b = await f.client('auro', 'join');
+  const original = await rememberHiveFact(a.file, fact('shared', 'before'));
+  await a.replica.syncOnce(); await b.replica.syncOnce();
+  await rememberHiveFact(b.file, fact('offline addition', 'keep this unsent edit'));
+  const create = f.transport.create;
+  f.transport.create = async () => { throw new Error('offline before upload'); };
+  await assert.rejects(b.replica.syncOnce(), /offline/);
+  f.transport.create = create;
+  await forgetHiveFact(a.file, original.id); await a.replica.syncOnce();
+  await b.replica.syncOnce();
+  assert.deepEqual((await readHiveMind(b.file)).memories.map(m => m.subject), ['offline addition']);
+  await a.replica.syncOnce();
+  assert.deepEqual((await readHiveMind(a.file)).memories.map(m => m.subject), ['offline addition']);
+});
+
+test('a new empty client can join a store with existing history erasures', async t => {
+  const f = await fixture(t), a = await f.client('desktop', 'seed');
+  const erased = await rememberHiveFact(a.file, fact('erase', 'private synthetic'));
+  await rememberHiveFact(a.file, fact('keep', 'retained')); await a.replica.syncOnce();
+  await forgetHiveFact(a.file, erased.id); await a.replica.syncOnce();
+  const b = await f.client('newcomer', 'join');
+  assert.ok(['current', 'synced'].includes((await b.replica.syncOnce()).status));
+  assert.deepEqual((await readHiveMind(b.file)).memories.map(row => row.subject), ['keep']);
+});
+
+test('a local forget during an offline pending upload is published before retrying old content', async t => {
+  const f = await fixture(t), a = await f.client('desktop', 'seed');
+  const original = await rememberHiveFact(a.file, fact('erase', 'private synthetic'));
+  const create = f.transport.create;
+  f.transport.create = async () => { throw new Error('offline before upload'); };
+  await assert.rejects(a.replica.syncOnce(), /offline/);
+  f.transport.create = create;
+  await forgetHiveFact(a.file, original.id);
+  await a.replica.syncOnce();
+  const cloud = await a.journal.inspect();
+  assert.ok(cloud.erasures.memoryIds.includes(original.id));
+  assert.equal(cloud.candidates.some(row => row.checkpoint.archive.store.memories.length), false);
 });
 
 test('a nonempty unbound join cannot overwrite either canonical store', async t => {

@@ -37,6 +37,8 @@ const ROOT_FILES = new Set([
   "src/cloud-live.mjs",
   "src/cloud-replica.mjs",
   "src/cloud-chunks.mjs",
+  "src/cloud-erasure.mjs",
+  "test/cloud-erasure.test.mjs",
   "test/cloud-chunks.test.mjs",
   "test/cloud-live.test.mjs",
   "test/cloud-replica.test.mjs",

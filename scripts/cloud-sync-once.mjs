@@ -39,10 +39,12 @@ try {
     return response.json();
   };
   const replica = new CloudReplica({ journal, directory: config.cacheDirectory, bootstrap: config.bootstrap,
+    historyErasure: config.historyErasure ?? true,
     snapshot: () => request('/v1/cloud/snapshot', {}), apply: input => request('/v1/cloud/apply', input) });
   const result = await replica.syncOnce();
   console.log(JSON.stringify(result));
   if (result.status === 'conflict') process.exitCode = 2;
+  else if (result.historyErasure?.erased === false) process.exitCode = 3;
 } catch (error) {
   // No raw fetch/config/parser errors, request bodies, local paths or credentials in routine logs.
   console.error(JSON.stringify({ failed: true, status: error.status,

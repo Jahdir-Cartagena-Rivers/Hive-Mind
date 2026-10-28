@@ -1,5 +1,13 @@
 # Drive-backed store: isolated staging
 
+User decision2026-10-27: **Forget must also erase the selected content from retained
+Drive history**, keeping content-free deletion markers to block stale resurrection.
+Offline clients apply it when they reconnect. Selecting this policy does not itself
+request deletion of any existing memory. Source staging now implements encrypted
+erasure markers, sanitized checkpoint replacements and folder-scoped permanent
+deletion. Offline regression coverage passes; live-provider erasure qualification
+and the production gates below remain required before real migration.
+
 The target is one canonical Drive-backed Hive Mind shared by independently running
 desktop and remote clients. This branch implements the first checkpoint/transport
 layer. It does **not** turn the installed service into a cloud-synced service yet.
@@ -20,6 +28,22 @@ the existing process lock and atomic local saves cannot coordinate two computers
   after observing a forget follows the existing store semantics. Brain record IDs
   remain permanently forgotten. Merged assets and links require full validation.
   Protocol2 checkpoints can reconcile multiple parent heads; protocol1 remains readable.
+- History erasure publishes an encrypted content-free memory/record ID marker
+  before cleanup. Each affected archive is sanitized, validated with the production
+  archive/link/asset parser, uploaded and verified before the original is permanently
+  deleted. Protocol3 aliases preserve logical ancestry for offline clients. All
+  clients sharing the namespace must support this protocol; older clients fail
+  closed. New subject tombstones are hashes; old plaintext markers are normalized.
+  Offline pending uploads and encrypted caches are sanitized before retry. An
+  explicit new remember after observed deletion receives a new identity. Unrelated
+  memories and retry receipts remain. Independent copies of the same text are
+  separate records; this is identity-based erasure rather than semantic search.
+- Chunk cleanup removes parts exclusively referenced by a deleted checkpoint.
+  Unknown orphan parts, including interrupted uploads or lost delete acknowledgements,
+  are not blindly deleted while another writer could own them. They yield
+  `historyErasure.erased:false` and CLI exit3; coordinated orphan recovery remains
+  a production gate. A successful sync is not proof of completed erasure. Drive API
+  calls cannot purge provider internal backups or disconnected client copies.
 - Native Drive v3 transport with complete pagination, bounded downloads, pinned
   HTTPS resumable uploads and injected authentication. No credential or provider
   error body is logged. No network write is automatically retried after uncertainty.
@@ -78,7 +102,7 @@ For the already configured Platform route, `src/composio-drive-transport.mjs`
 exports a folder-bound adapter. Set only `COMPOSIO_API_KEY` through the host's
 protected credential mechanism. `transportOptions` must explicitly contain
 `folderId`, `userId` and `connectedAccountId`; there are no private account defaults.
-The four Drive tools are pinned to20261022_00 because omitted versions use the
+The five Drive tools, including permanent delete, are pinned to20261022_00 because omitted versions use the
 older frozen schema. For You `ck_` consumer keys require MCP and are rejected here.
 No Google OAuth token is exported. Project credentials are sent only to Composio;
 signed storage transfers never receive that header. Provider error bodies are
@@ -87,8 +111,9 @@ blindly replayed. This deterministic storage adapter extends the existing bound
 remote script path rather than introducing another agent or identity system.
 
 The adapted transport has offline rejection tests and an independently replayed
-read-only live provider check. One actual encrypted synthetic checkpoint was then
-seeded through the same one-cycle CLI into a separate private qualification folder.
+read-only live provider check. An actual encrypted synthetic Windows-to-remote-to-
+Windows exchange through the one-cycle CLI retained both test-note identities in a
+separate private qualification folder. This is a small exchange, not sustained sync.
 No real memory or credential payload was uploaded. Retained source/evidence from
 the remote implementation stays in the private transition workspace, not this repo.
 
@@ -100,6 +125,9 @@ Config names `workspace`, `client`, `keyFile`, `tokenFile`, loopback `origin`,
 `cacheDirectory`, explicit `bootstrap`, and either native `folderId` or an absolute
 reviewed `transportModule` exporting `createTransport(transportOptions)`. An adapter
 implements async `list(): {id,name}[]`, `read(id): Buffer`, `create(name,bytes)`.
+For erasure it also implements folder-scoped `remove(id,expectedName)` using
+permanent deletion, not Drive trash. `historyErasure` defaults to true; disabling it
+is a synthetic diagnostic setting and does not meet the approved Forget contract.
 Do not load executable adapter paths from memories or cloud payloads. The routine
 does not schedule itself, export tokens, modify installed apps or choose credentials.
 
@@ -118,10 +146,9 @@ does not schedule itself, export tokens, modify installed apps or choose credent
    configuration, credential provisioning and scheduled product operation remain
    unqualified. A new client starts with an empty dedicated profile, never a clone
    that can silently claim ownership of active tasks.
-3. Forget-retention protocol. Current immutable checkpoints retain old encrypted
-   content, so logical tombstones alone do not satisfy erasure. No real memory
-   migration until retained checkpoints/assets, stale clients and key lifecycle
-   have a tested erasure/retention design. No claim of deleting provider backups.
+3. Live qualification of the new history-erasure path, including chunk cleanup,
+   stale clients and key lifecycle. Coordinated recovery of unknown orphan parts
+   remains unimplemented. No real migration or claim of deleting provider backups.
 4. Protected cross-platform credential access. Existing standalone Hive Mind has
    no credential vault; Auto Apply's current portal store is Windows DPAPI. Never
    import credential values into searchable memories or source archives.

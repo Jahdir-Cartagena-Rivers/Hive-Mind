@@ -9,6 +9,43 @@ export class ChunkedTransport {
     this.transport = transport; this.partBytes = partBytes;
   }
   async list() { return this.transport.list(); }
+  async erasureAudit() {
+    const objects = await this.transport.list(), referenced = new Set();
+    for (const object of objects.filter(row => /^hive-[a-f0-9]{64}\.(?:checkpoint|erasure)$/u.test(row.name))) {
+      const raw = await this.transport.read(object.id);
+      let manifest;
+      try { manifest = raw.length <= 128 * 1024 ? JSON.parse(raw.toString('utf8')) : null; } catch { continue; }
+      if (manifest?.format === 'hive-cloud.chunks.v1') {
+        await this.read(object.id);
+        for (const part of manifest.parts) referenced.add(part.name);
+      }
+    }
+    // An interrupted upload/deletion can leave parts whose owner is unknown. Never delete an in-flight writer's parts.
+    return { orphanParts: objects.filter(row => /^hive-part-[a-f0-9]{64}\.blob$/u.test(row.name) && !referenced.has(row.name)).length };
+  }
+  async remove(id, name) {
+    if (typeof this.transport.remove !== 'function') throw new Error('Cloud transport cannot permanently delete retained history.');
+    const raw = await this.transport.read(id);
+    let manifest;
+    try { manifest = raw.length <= 128 * 1024 ? JSON.parse(raw.toString('utf8')) : null; } catch { /* encrypted */ }
+    // Validate the complete checkpoint before removing the manifest or any part.
+    await this.read(id);
+    await this.transport.remove(id, name);
+    if (manifest?.format !== 'hive-cloud.chunks.v1') return;
+    const objects = await this.transport.list(), retained = new Set();
+    for (const object of objects.filter(row => /^hive-[a-f0-9]{64}\.(?:checkpoint|erasure)$/u.test(row.name))) {
+      const bytes = await this.transport.read(object.id);
+      let other;
+      try { other = bytes.length <= 128 * 1024 ? JSON.parse(bytes.toString('utf8')) : null; } catch { continue; }
+      if (other?.format === 'hive-cloud.chunks.v1') {
+        if (!Array.isArray(other.parts)) throw new Error('Malformed retained manifest; chunk cleanup stopped.');
+        for (const part of other.parts) retained.add(part.name);
+      }
+    }
+    for (const part of manifest.parts) if (!retained.has(part.name))
+      for (const object of objects.filter(row => row.name === part.name))
+        await this.transport.remove(object.id, object.name);
+  }
   async read(id) {
     const raw = await this.transport.read(id);
     if (raw.length > MAX_BYTES) throw new Error('Cloud checkpoint exceeds the download limit.');

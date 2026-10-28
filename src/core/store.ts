@@ -37,6 +37,7 @@ export interface HiveFile {
   readonly version: 1;
   readonly memories: ReadonlyArray<HiveMemory>;
   readonly forgotten?: ReadonlyArray<string>;
+  readonly forgottenMemoryIds?: ReadonlyArray<string>;
   readonly continuity?: HiveContinuity;
 }
 
@@ -47,6 +48,15 @@ const MAX_MEMORIES = 2_000;
 const key = (value: string) => value.trim().toLocaleLowerCase();
 const identity = (memory: HiveImportFact) =>
   JSON.stringify([memory.scope, key(memory.project ?? ""), key(memory.subject)]);
+/** New deletion markers retain no subject or project text. Legacy markers remain readable. */
+export const hiveForgetMarker = (memory: HiveImportFact) =>
+  hashHiveForgetIdentity(identity(memory));
+export const hashHiveForgetIdentity = (value: string) =>
+  /^sha256:[a-f0-9]{64}$/u.test(value)
+    ? value
+    : `sha256:${NodeCrypto.createHash("sha256").update(value).digest("hex")}`;
+export const isHiveMemoryForgotten = (markers: readonly string[], memory: HiveImportFact) =>
+  markers.includes(identity(memory)) || markers.includes(hiveForgetMarker(memory));
 const stopWords = new Set([
   "about",
   "and",
@@ -190,7 +200,10 @@ function parseHiveMind(contents: string): HiveFile {
       !validContinuity((parsed as HiveFile).continuity)) ||
     ((parsed as HiveFile).forgotten !== undefined &&
       (!Array.isArray((parsed as HiveFile).forgotten) ||
-        !(parsed as HiveFile).forgotten?.every((value) => typeof value === "string")))
+        !(parsed as HiveFile).forgotten?.every((value) => typeof value === "string"))) ||
+    ((parsed as HiveFile).forgottenMemoryIds !== undefined &&
+      (!Array.isArray((parsed as HiveFile).forgottenMemoryIds) ||
+        !(parsed as HiveFile).forgottenMemoryIds?.every((value) => typeof value === "string" && value.length > 0 && value.length <= 4000)))
   ) {
     throw new Error("Unsupported or malformed Hive Mind data; existing memories were not changed.");
   }
@@ -348,7 +361,7 @@ export function rememberHiveFactResult(
         ...data,
         memories: [...data.memories.filter((item) => item.id !== memory.id), memory],
         ...(data.forgotten
-          ? { forgotten: data.forgotten.filter((entry) => entry !== identity(memory)) }
+          ? { forgotten: data.forgotten.filter((entry) => !isHiveMemoryForgotten([entry], memory)) }
           : {}),
       },
       { memory, changed: true },
@@ -400,7 +413,8 @@ export function forgetHiveFact(filePath: string, id: string): Promise<boolean> {
       {
         ...data,
         memories: data.memories.filter((entry) => entry.id !== id),
-        forgotten: [...new Set([...(data.forgotten ?? []), identity(memory)])],
+        forgotten: [...new Set([...(data.forgotten ?? []).map(hashHiveForgetIdentity), hiveForgetMarker(memory)])],
+        forgottenMemoryIds: [...new Set([...(data.forgottenMemoryIds ?? []), memory.id])],
       },
       true,
     ];
@@ -424,7 +438,7 @@ export function importHiveFacts(
     // @effect-diagnostics-next-line globalDate:off - this Promise store runs outside an Effect clock.
     const now = new Date().toISOString();
     for (const input of facts) {
-      if (data.forgotten?.includes(identity(input))) {
+      if (isHiveMemoryForgotten(data.forgotten ?? [], input)) {
         counts.protected++;
         continue;
       }

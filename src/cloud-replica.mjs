@@ -7,11 +7,13 @@ import { checkpointId, validateCloudArchive } from './cloud-archive.mjs';
 import { cloudMergeBase, mergeCloudArchives } from './cloud-merge.mjs';
 import { ownStateDirectory } from './ownership.mjs';
 import { validateStateDirectory } from './service.mjs';
+import { collectCloudErasures, redactCloudArchive } from './cloud-erasure.mjs';
 
 const emptyArchive = () => ({ format: 'hive-mind.archive.v1', store: { version: 1, memories: [], continuity: newContinuity() }, images: {} });
 const sorted = (rows, key) => [...rows].sort((a, b) => key(a).localeCompare(key(b)));
 export const archiveContentDigest = archive => fingerprint({
   memories: sorted(archive.store.memories, r => r.id), forgotten: [...(archive.store.forgotten ?? [])].sort(),
+  forgottenMemoryIds: [...(archive.store.forgottenMemoryIds ?? [])].sort(),
   records: sorted(archive.store.continuity.records, r => r.id),
   receipts: sorted(archive.store.continuity.receipts, r => r.key),
   forgottenRecords: [...archive.store.continuity.forgotten].sort(), images: archive.images,
@@ -19,10 +21,11 @@ export const archiveContentDigest = archive => fingerprint({
 
 /** One resumable cycle. snapshot/apply are authenticated local service callbacks, never filesystem replacements. */
 export class CloudReplica {
-  constructor({ journal, directory, snapshot, apply, bootstrap }) {
+  constructor({ journal, directory, snapshot, apply, bootstrap, historyErasure = true }) {
     if (!path.isAbsolute(directory) || !['seed', 'join', 'resume'].includes(bootstrap))
       throw new Error('Cloud replica requires a dedicated absolute cache and explicit bootstrap direction.');
-    Object.assign(this, { journal, directory, snapshot, apply, bootstrap });
+    if (typeof historyErasure !== 'boolean') throw new Error('Invalid history erasure policy.');
+    Object.assign(this, { journal, directory, snapshot, apply, bootstrap, historyErasure });
     this.cache = path.join(directory, 'replica.checkpoint');
   }
 
@@ -61,11 +64,45 @@ export class CloudReplica {
     if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('Invalid replica cache directory.');
     const release = await ownStateDirectory(this.directory);
     try {
-      const state = await this.load();
+      let state = await this.load();
+      let remote = await this.journal.inspect();
+      if (state.pending && this.historyErasure) {
+        const current = await this.snapshot();
+        const accepted = this.journal.decode(state.pending.id, Buffer.from(state.pending.bytes, 'base64')).archive;
+        const rules = collectCloudErasures([accepted, state.pending.localBefore, current.archive,
+          ...[...remote.checkpoints.values()].map(row => row.archive)], remote.erasures, [current.archive]);
+        if (fingerprint(rules) !== fingerprint(remote.erasures)) {
+          await this.journal.eraseHistory(rules);
+          remote = await this.journal.inspect();
+        }
+      }
+      if (remote.erasures.memoryIds.length || remote.erasures.recordIds.length) {
+        // Apply remote forgets before retries or conflict reporting, including an offline client's pending upload.
+        const current = await this.snapshot();
+        let clean = redactCloudArchive(current.archive, remote.erasures);
+        if (state.pending) {
+          const accepted = this.journal.decode(state.pending.id, Buffer.from(state.pending.bytes, 'base64')).archive;
+          const sanitized = redactCloudArchive(accepted, remote.erasures);
+          if (archiveContentDigest(accepted) !== archiveContentDigest(sanitized)) {
+            const merged = mergeCloudArchives(redactCloudArchive(state.pending.localBefore, remote.erasures), clean, sanitized);
+            if (merged.conflicts.length) {
+              if (archiveContentDigest(current.archive) !== archiveContentDigest(clean))
+                await this.apply({ archive: clean, expectedRevision: current.revision });
+              return { status: 'conflict', conflicts: merged.conflicts, pending: state.pending.id };
+            }
+            clean = merged.archive;
+            state = { ...state, pending: null };
+          }
+        }
+        if (archiveContentDigest(current.archive) !== archiveContentDigest(clean))
+          await this.apply({ archive: clean, expectedRevision: current.revision });
+        if (state.base) state = { ...state, base: redactCloudArchive(state.base, remote.erasures) };
+        await this.save(state);
+      }
       if (state.pending) return await this.finish(state);
       const local = await this.snapshot();
       await validateCloudArchive(local.archive, this.directory);
-      const remote = await this.journal.inspect();
+      remote = await this.journal.inspect();
       let remoteArchive, parents = remote.heads;
       if (!parents.length) {
         if (state.baseHead || this.bootstrap !== 'seed') throw new Error('Empty remote store requires explicit seed bootstrap.');
@@ -84,20 +121,32 @@ export class CloudReplica {
         if (!remote.checkpoints.has(state.baseHead)) throw new Error('Cloud base disappeared; preserve local state and recover explicitly.');
         merged = mergeCloudArchives(state.base, local.archive, remoteArchive);
       } else if (!parents.length && this.bootstrap === 'seed') merged = { archive: local.archive, conflicts: [] };
-      else if (this.bootstrap === 'join' && archiveContentDigest(local.archive) === archiveContentDigest(emptyArchive()))
+      else if (this.bootstrap === 'join' && archiveContentDigest(local.archive) === archiveContentDigest(
+        remote.erasures.memoryIds.length || remote.erasures.recordIds.length
+          ? redactCloudArchive(emptyArchive(), remote.erasures) : emptyArchive()))
         merged = { archive: remoteArchive, conflicts: [] };
       else throw new Error('Nonempty local/cloud stores require explicit initial reconciliation.');
       if (merged.conflicts.length) return { status: 'conflict', conflicts: merged.conflicts };
+      let erasure;
+      if (this.historyErasure) {
+        const rules = collectCloudErasures([...remote.checkpoints.values()].map(row => row.archive)
+          .concat(state.base ? [state.base, local.archive] : [local.archive]), remote.erasures, [merged.archive]);
+        if (rules.memoryIds.length || rules.recordIds.length) {
+          erasure = await this.journal.eraseHistory(rules);
+          merged.archive = redactCloudArchive(merged.archive, rules);
+        }
+      }
       await validateCloudArchive(merged.archive, this.directory);
       if (parents.length === 1 && archiveContentDigest(local.archive) === archiveContentDigest(remoteArchive)) {
         await this.save({ ...state, baseHead: parents[0], base: remoteArchive });
-        return { status: 'current', head: parents[0] };
+        return { status: 'current', head: parents[0], ...(erasure ? { historyErasure: erasure } : {}) };
       }
       const prepared = this.journal.encode(merged.archive, parents);
       const pending = { id: prepared.id, bytes: prepared.bytes.toString('base64'), localBefore: local.archive };
       // This write must precede the network operation. A timeout never regenerates the pending upload.
       await this.save({ ...state, pending });
-      return await this.finish({ ...state, pending });
+      const result = await this.finish({ ...state, pending });
+      return { ...result, ...(erasure ? { historyErasure: erasure } : {}) };
     } finally { await release(); }
   }
 

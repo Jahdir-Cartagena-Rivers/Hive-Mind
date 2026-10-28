@@ -182,6 +182,10 @@ describe("Hive Mind", () => {
       NodeAssert.equal(hiveContext(file, "yes"), "");
       NodeAssert.equal(await forgetHiveFact(file, first.id), true);
       NodeAssert.deepEqual(await recallHiveFacts(file, "Nebula"), []);
+      const erased = await readHiveMind(file);
+      NodeAssert.deepEqual(erased.forgottenMemoryIds, [first.id]);
+      NodeAssert.match(erased.forgotten![0], /^sha256:[a-f0-9]{64}$/u);
+      NodeAssert.equal((await NodeFSP.readFile(file, "utf8")).toLowerCase().includes("nebula"), false);
     } finally {
       await NodeFSP.rm(directory, { recursive: true, force: true });
     }

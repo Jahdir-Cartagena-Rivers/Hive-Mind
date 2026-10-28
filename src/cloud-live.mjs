@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { BrainError, exportBrain, restoreBrain, persistBrainBytes } from './brain.mjs';
 import { fingerprint } from './core/continuity.ts';
-import { mutateHiveStore, readHiveMind } from './core/store.ts';
+import { mutateHiveStore, readHiveMind, hashHiveForgetIdentity, isHiveMemoryForgotten } from './core/store.ts';
 
 const memoryKey = memory => JSON.stringify([memory.scope, (memory.project ?? '').trim().toLocaleLowerCase(), memory.subject.trim().toLocaleLowerCase()]);
 
@@ -28,18 +28,24 @@ export async function applyLiveCloudArchive(file, { archive, expectedRevision })
         throw new BrainError(409, 'Local memory changed during cloud sync; merge again without overwriting it.');
       if (!current.continuity) throw new BrainError(409, 'Cloud apply requires an initialized service.');
       const incomingKeys = new Set(incoming.memories.map(memoryKey));
-      if (incoming.memories.some(m => (incoming.forgotten ?? []).includes(memoryKey(m))) ||
+      if (incoming.memories.some(m => isHiveMemoryForgotten(incoming.forgotten ?? [], m) ||
+          (incoming.forgottenMemoryIds ?? []).includes(m.id)) ||
           incoming.continuity.records.some(r => incoming.continuity.forgotten.includes(r.id)))
         throw new BrainError(409, 'Cloud snapshot would resurrect forgotten content.');
       for (const memory of current.memories)
-        if (!incomingKeys.has(memoryKey(memory)) && !(incoming.forgotten ?? []).includes(memoryKey(memory)))
+        if (!incomingKeys.has(memoryKey(memory)) && !isHiveMemoryForgotten(incoming.forgotten ?? [], memory) &&
+            !(incoming.forgottenMemoryIds ?? []).includes(memory.id))
           throw new BrainError(409, 'Cloud snapshot would remove memory without a forget marker.');
       for (const marker of current.forgotten ?? [])
-        if (!(incoming.forgotten ?? []).includes(marker) && !incomingKeys.has(marker))
+        if (!(incoming.forgotten ?? []).some(next => hashHiveForgetIdentity(next) === hashHiveForgetIdentity(marker)) &&
+            !incoming.memories.some(memory => isHiveMemoryForgotten([marker], memory)))
           throw new BrainError(409, 'Cloud snapshot would discard a memory forget marker.');
       for (const id of current.continuity.forgotten)
         if (!incoming.continuity.forgotten.includes(id))
           throw new BrainError(409, 'Cloud snapshot would discard a permanent forget marker.');
+      for (const id of current.forgottenMemoryIds ?? [])
+        if (!(incoming.forgottenMemoryIds ?? []).includes(id))
+          throw new BrainError(409, 'Cloud snapshot would discard a permanent memory forget marker.');
       for (const record of current.continuity.records)
         if (!incoming.continuity.records.some(r => r.id === record.id) && !incoming.continuity.forgotten.includes(record.id))
           throw new BrainError(409, 'Cloud snapshot would remove a record without a forget marker.');

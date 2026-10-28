@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newContinuity } from '../src/core/continuity.ts';
 import { cloudMergeBase, mergeCloudArchives } from '../src/cloud-merge.mjs';
+import { hashHiveForgetIdentity } from '../src/core/store.ts';
 
 const empty = () => ({ format: 'hive-mind.archive.v1', store: { version: 1, memories: [], continuity: newContinuity() }, images: {} });
 const memory = (id, subject, fact) => ({ id, subject, fact, scope: 'general', project: null,
@@ -39,7 +40,7 @@ test('forget dominates a stale correction while explicit re-remember after obser
   right.store.memories[0].fact = 'stale correction';
   const result = mergeCloudArchives(base, left, right);
   assert.deepEqual(result.archive.store.memories, []);
-  assert.deepEqual(result.archive.store.forgotten, [key('alpha')]);
+  assert.deepEqual(result.archive.store.forgotten, [hashHiveForgetIdentity(key('alpha'))]);
   const readded = structuredClone(left);
   readded.store.forgotten = []; readded.store.memories = [memory('new', 'alpha', 'explicit new memory')];
   assert.equal(mergeCloudArchives(left, readded, left).archive.store.memories[0].id, 'new');
