@@ -15,8 +15,12 @@ async function fixture(t) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'hive-file-sync-'));
   const key = randomBytes(32), services = [], revisions = new Map([['revision-0', null]]);
   let version = 0, bytes = null;
-  const remote = { revisions, writes: 0,
-    async read() { return { bytes: bytes === null ? null : Buffer.from(bytes), etag: `"version-${version}"`, revisionId: `revision-${version}` }; },
+  const remote = { revisions, writes: 0, bodyReads: 0,
+    async read({ etag } = {}) {
+      if (bytes && etag === `"version-${version}"`) return { unchanged: true, etag, revisionId: `revision-${version}` };
+      remote.bodyReads++;
+      return { bytes: bytes === null ? null : Buffer.from(bytes), etag: `"version-${version}"`, revisionId: `revision-${version}` };
+    },
     async write(next, { etag }) {
       if (etag !== `"version-${version}"`) { const error = new Error('stale'); error.status = 412; throw error; }
       bytes = Buffer.from(next); version++; remote.writes++;
@@ -49,7 +53,9 @@ test('seed, join and pull exchange independent edits with no redundant upload or
   await b.replica.syncOnce(); await a.replica.syncOnce(); await b.replica.syncOnce();
   assert.deepEqual((await readHiveMind(a.file)).memories, (await readHiveMind(b.file)).memories);
   const writes = f.remote.writes;
+  const reads = f.remote.bodyReads;
   assert.equal((await a.replica.syncOnce()).status, 'current'); assert.equal(f.remote.writes, writes);
+  assert.equal(f.remote.bodyReads, reads, 'unchanged background polling must not redownload the full archive');
 });
 
 test('a stale conditional write rebases independent edits from durable pending state', async t => {
@@ -196,4 +202,22 @@ test('a new empty client joins after forget without redundant upload or stale re
   const writes = f.remote.writes, b = await f.client('newcomer', 'join');
   await b.replica.syncOnce(); assert.equal(f.remote.writes, writes);
   assert.deepEqual((await readHiveMind(b.file)).memories.map(m => m.subject), ['keep']);
+});
+
+test('remote forget sanitizes cached history and pending ciphertext even when an unrelated edit stays conflicted', async t => {
+  const f = await fixture(t), a = await f.client('desktop', 'seed'), b = await f.client('auro', 'join');
+  const secret = await rememberHiveFact(a.file, fact('private subject fixture', 'private body fixture'));
+  await rememberHiveFact(a.file, fact('shared', 'before')); await a.replica.syncOnce(); await b.replica.syncOnce();
+  await rememberHiveFact(b.file, fact('shared', 'remote correction'));
+  const write = f.remote.write; f.remote.write = async () => { throw new Error('offline'); };
+  await assert.rejects(b.replica.syncOnce(), /offline/); f.remote.write = write;
+  await forgetHiveFact(a.file, secret.id); await rememberHiveFact(a.file, fact('shared', 'desktop correction')); await a.replica.syncOnce();
+  assert.equal((await b.replica.syncOnce()).status, 'conflict');
+  assert.equal((await readHiveMind(b.file)).memories.some(m => m.id === secret.id), false);
+  const cached = await b.replica.load();
+  const pending = b.replica.journal.decode(cached.pending.id, Buffer.from(cached.pending.bytes, 'base64')).archive;
+  for (const archive of [cached.base, cached.pending.localBefore, cached.pending.remoteBefore, pending]) {
+    assert.equal(JSON.stringify(archive).includes('private body fixture'), false);
+    assert.equal(JSON.stringify(archive).includes('private subject fixture'), false);
+  }
 });

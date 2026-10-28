@@ -216,12 +216,14 @@ export class ComposioDriveFile {
   }
 
   /** read() -> {bytes: Buffer|null, etag, revisionId}; bytes is null only for an empty initial file. */
-  async read() {
+  async read({ etag } = {}) {
+    if (etag !== undefined && !validEtag(etag)) throw new DriveFileConfigError('Invalid cached Drive ETag.');
     const before = await this.#metadata('read-metadata');
     if (before.size === 0) {
       if (before.md5 !== undefined && before.md5 !== EMPTY_MD5) throw new DriveFileIntegrityError('Empty Drive file has a non-empty checksum.');
       return { bytes: null, etag: before.etag, revisionId: before.revisionId };
     }
+    if (etag === before.etag) return { unchanged: true, etag: before.etag, revisionId: before.revisionId };
     const r = await this.#proxy({ endpoint: `${DRIVE}/drive/v3/files/${this.#fileId}?alt=media`, method: 'GET' }, { phase: 'download' });
     if (r.status !== 200) throw new DriveFileProviderError(`Drive content request failed (HTTP ${r.status}).`, { status: r.status, phase: 'download' });
     let bytes;
@@ -386,6 +388,6 @@ function safeJson(text) { try { return JSON.parse(text); } catch { return undefi
 /** Factory returning the bound file transport (read/write/purgeRevisions/listRevisions). */
 export function createFileTransport(options) {
   const file = new ComposioDriveFile(options);
-  return { read: () => file.read(), write: (bytes, opts) => file.write(bytes, opts),
+  return { read: (opts) => file.read(opts), write: (bytes, opts) => file.write(bytes, opts),
     purgeRevisions: (ids) => file.purgeRevisions(ids), listRevisions: (opts) => file.listRevisions(opts) };
 }

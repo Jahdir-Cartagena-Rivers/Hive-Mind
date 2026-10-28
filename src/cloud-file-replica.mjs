@@ -34,10 +34,15 @@ export class CloudFileReplica extends CloudReplica {
 
   async save(state) { return super.save({ ...state, bindingDigest: this.bindingDigest }); }
 
-  async readRemote() {
-    const remote = await this.fileTransport.read();
+  async readRemote(state) {
+    const remote = await this.fileTransport.read(state?.baseEtag ? { etag: state.baseEtag } : undefined);
     if (typeof remote.etag !== 'string' || !remote.etag || remote.etag.length > 1000 || /[\r\n]/u.test(remote.etag) ||
         (remote.revisionId !== null && !revision(remote.revisionId))) throw new Error('Invalid conditional file metadata.');
+    if (remote.unchanged) {
+      if (!state?.base || !state.baseHead || state.baseEtag !== remote.etag || state.baseRevisionId !== remote.revisionId)
+        throw new Error('Conditional read does not match the authenticated cached base.');
+      return { ...remote, id: state.baseHead, archive: state.base, metadata: state.base.cloudFile };
+    }
     if (remote.bytes === null) return { ...remote, id: null, archive: empty(), metadata: null };
     if (!Buffer.isBuffer(remote.bytes) || remote.revisionId === null) throw new Error('Invalid encrypted file body or missing head revision.');
     const id = checkpointId(remote.bytes), archive = this.journal.decode(id, remote.bytes).archive;
@@ -78,8 +83,20 @@ export class CloudFileReplica extends CloudReplica {
     if (!rules.memoryIds.length && !rules.recordIds.length) return { state, local };
     const clean = redactCloudArchive(local.archive, rules);
     if (!contentEqual(local.archive, clean)) await this.apply({ archive: clean, expectedRevision: local.revision });
-    return { state: { ...state, ...(state.base ? { base: redactCloudArchive(state.base, rules) } : {}) },
-      local: await this.snapshot(), rules };
+    let pending = state.pending;
+    if (pending) {
+      const accepted = this.journal.decode(pending.id, Buffer.from(pending.bytes, 'base64')).archive;
+      const sanitized = redactCloudArchive(accepted, rules);
+      if (!contentEqual(accepted, sanitized)) {
+        const packet = this.journal.encode(sanitized);
+        pending = { ...pending, id: packet.id, bytes: packet.bytes.toString('base64'), needsRebase: true };
+      }
+      pending = { ...pending, localBefore: redactCloudArchive(pending.localBefore, rules),
+        remoteBefore: redactCloudArchive(pending.remoteBefore, rules) };
+    }
+    const next = { ...state, pending, ...(state.base ? { base: redactCloudArchive(state.base, rules) } : {}) };
+    await this.save(next);
+    return { state: next, local: await this.snapshot(), rules };
   }
 
   async accept(state, remote) {
@@ -91,7 +108,8 @@ export class CloudFileReplica extends CloudReplica {
     await validateCloudArchive(merged.archive, this.directory);
     if (!contentEqual(local.archive, merged.archive))
       await this.apply({ archive: merged.archive, expectedRevision: local.revision });
-    const next = { ...state, baseHead: remote.id, base: remote.archive, instanceId: remote.metadata.instanceId, pending: null };
+    const next = { ...state, baseHead: remote.id, base: remote.archive, baseEtag: remote.etag, baseRevisionId: remote.revisionId,
+      instanceId: remote.metadata.instanceId, pending: null };
     await this.save(next);
     const { state: ignored, ...cleanup } = await this.cleanup(next, remote);
     return { status: 'synced', head: remote.id, ...cleanup };
@@ -107,7 +125,7 @@ export class CloudFileReplica extends CloudReplica {
       let state = await this.load();
       if ((state.bindingDigest && state.bindingDigest !== this.bindingDigest) || (state.baseHead && !state.bindingDigest))
         throw new Error('File/account binding changed; preserve the cache and recover explicitly.');
-      let remote = await this.readRemote();
+      let remote = await this.readRemote(state);
       if (state.instanceId && remote.metadata && state.instanceId !== remote.metadata.instanceId)
         throw new Error('Canonical file identity changed; preserve local state and recover explicitly.');
       if (remote.id === null && (state.baseHead || this.bootstrap !== 'seed'))
@@ -137,13 +155,14 @@ export class CloudFileReplica extends CloudReplica {
           if (merged.conflicts.length) return { status: 'conflict', conflicts: merged.conflicts, pending: state.pending.id };
           await validateCloudArchive(merged.archive, this.directory);
           if (!contentEqual(local.archive, merged.archive)) await this.apply({ archive: merged.archive, expectedRevision: local.revision });
-          state = { ...state, baseHead: remote.id, base: remote.id ? remote.archive : null, pending: null };
+          state = { ...state, baseHead: remote.id, base: remote.id ? remote.archive : null,
+            baseEtag: remote.id ? remote.etag : null, baseRevisionId: remote.id ? remote.revisionId : null, pending: null };
           await this.save(state);
         }
       }
       if (state.pending) {
         if (remote.id === state.pending.id) return await this.accept(state, remote);
-        if (remote.etag !== state.pending.expectedEtag) {
+        if (remote.etag !== state.pending.expectedEtag || state.pending.needsRebase) {
           const accepted = this.journal.decode(state.pending.id, Buffer.from(state.pending.bytes, 'base64')).archive;
           const local = await this.snapshot();
           const rules = collectCloudErasures([state.pending.remoteBefore, accepted, remote.archive, local.archive],
@@ -155,7 +174,7 @@ export class CloudFileReplica extends CloudReplica {
           if (merged.conflicts.length) return { status: 'conflict', conflicts: merged.conflicts, pending: state.pending.id };
           await validateCloudArchive(merged.archive, this.directory);
           if (!contentEqual(local.archive, merged.archive)) await this.apply({ archive: merged.archive, expectedRevision: local.revision });
-          state = { ...state, baseHead: remote.id, base: remote.archive, pending: null };
+          state = { ...state, baseHead: remote.id, base: remote.archive, baseEtag: remote.etag, baseRevisionId: remote.revisionId, pending: null };
           await this.save(state);
         }
       }
@@ -176,7 +195,8 @@ export class CloudFileReplica extends CloudReplica {
         if (remote.id && contentEqual(merged.archive, remote.archive)) {
           const applied = !contentEqual(local.archive, remote.archive);
           if (applied) await this.apply({ archive: remote.archive, expectedRevision: local.revision });
-          state = { ...state, baseHead: remote.id, base: remote.archive, instanceId: remote.metadata.instanceId };
+          state = { ...state, baseHead: remote.id, base: remote.archive, baseEtag: remote.etag, baseRevisionId: remote.revisionId,
+            instanceId: remote.metadata.instanceId };
           await this.save(state);
           const { state: ignored, ...cleanup } = await this.cleanup(state, remote);
           return { status: applied ? 'synced' : 'current', head: remote.id, ...cleanup };

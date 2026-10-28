@@ -18,6 +18,7 @@ validation, three-way merge and serialized local apply as journal staging. It re
 one current encrypted file rather than replaying every checkpoint. A local encrypted
 cache retains the client's last merged base, so offline changes can merge after old
 cloud backup revisions are removed. Competing corrections are still conflicts.
+Unchanged polls check the file binding/ETag without downloading the archive again.
 
 ## Ownership and safeguards
 
@@ -64,6 +65,24 @@ The existing source routine accepts `storageMode:"file"` and a reviewed absolute
 read from the existing protected host mechanism; no Google token is exported.
 Cloud encryption keys remain outside Drive. Installed clients are not configured
 by this source change. Use separate profile/cache/file IDs for synthetic testing.
+
+For protected keys, configure the built-in `src/cloud-key.mjs` as `keyProviderModule`
+with `keyProviderOptions.file` instead of a raw `keyFile`. Windows current-user
+DPAPI protects the key; headless hosts encrypt it with a domain-separated key
+derived from their existing masked Composio credential. The latter must remain
+available on that host. Credential rotation requires reprovisioning from a host
+that still has its key; never silently create a replacement master.
+
+One-time X25519 provisioning exposes only public recipient keys and an encrypted
+master-key envelope. Pin the recipient fingerprint and transfer fingerprint through
+the existing trusted orchestration channel; do not learn them from Drive alone.
+Private identity and master keys are stored only in host-protected packets. Windows
+may also use a DPAPI-protected `composioCredentialFile`; headless hosts continue
+using their masked credential environment. No key or credential is put in command
+arguments, general memory, logs or plaintext temporary files. Key creation uses
+exclusive writes, rejects linked paths and preserves existing material on failure.
+Generated-key tests include native Windows DPAPI; real provisioning is a separate
+operational step, not something source installation performs automatically.
 
 The source transport adapter, real cross-host file-mode trial, full-size real-store
 preflight, restart/scheduling, protected credential vault and final single-executor

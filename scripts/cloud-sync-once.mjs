@@ -6,6 +6,7 @@ import { CloudReplica } from '../src/cloud-replica.mjs';
 import { DriveTransport } from '../src/drive-transport.mjs';
 import { ChunkedTransport } from '../src/cloud-chunks.mjs';
 import { CloudFileReplica } from '../src/cloud-file-replica.mjs';
+import { loadComposioCredential } from '../src/cloud-key.mjs';
 
 async function protectedFile(file, maxBytes) {
   if (!path.isAbsolute(file ?? '')) throw new Error('Protected file paths must be absolute.');
@@ -23,7 +24,21 @@ try {
   const origin = new URL(config.origin);
   if (origin.protocol !== 'http:' || origin.hostname !== '127.0.0.1' || origin.username || origin.password ||
       origin.pathname !== '/' || origin.search || origin.hash) throw new Error('Cloud sync local service must be HTTP loopback with no URL credentials.');
-  const key = await protectedFile(config.keyFile, 32);
+  if (config.composioCredentialFile) {
+    const credential = await loadComposioCredential({ file: config.composioCredentialFile, workspace: config.workspace });
+    if (process.env.COMPOSIO_API_KEY && process.env.COMPOSIO_API_KEY !== credential)
+      throw new Error('Protected credential source conflicts with the current host environment.');
+    process.env.COMPOSIO_API_KEY = credential;
+  }
+  let key;
+  if (config.keyProviderModule) {
+    if (config.keyFile || !path.isAbsolute(config.keyProviderModule) || !config.keyProviderModule.endsWith('.mjs'))
+      throw new Error('Select one explicit protected key source.');
+    await protectedFile(config.keyProviderModule, 128 * 1024);
+    const provider = await import(pathToFileURL(config.keyProviderModule).href);
+    key = await provider.loadCloudKey({ ...config.keyProviderOptions, workspace: config.workspace });
+    if (!Buffer.isBuffer(key) || key.length !== 32) throw new Error('Protected cloud key is invalid.');
+  } else key = await protectedFile(config.keyFile, 32);
   const token = (await protectedFile(config.tokenFile, 4096)).toString('utf8').trim();
   if (token.length < 32 || /\s/u.test(token)) throw new Error('Local service credential unavailable.');
   let transport;

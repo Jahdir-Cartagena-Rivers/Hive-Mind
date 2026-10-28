@@ -102,6 +102,15 @@ test('read accepts inline data only when its exact serialization matches MD5', a
   await assert.rejects(createFileTransport({ ...options, fetchImpl: bad.impl }).read(), (e) => e.code === 'ERR_DRIVE_FILE_INTEGRITY' && safe(e));
 });
 
+test('unchanged file reads still verify binding but skip the encrypted body transfer', async () => {
+  const f = fake(c => isMeta(c) ? env({ status: 200, data: meta(Buffer.from('unchanged')) }) : assert.fail('no download'));
+  assert.deepEqual(await createFileTransport({ ...options, fetchImpl: f.impl }).read({ etag: ETAG }),
+    { unchanged: true, etag: ETAG, revisionId: 'synthetic_rev_head' });
+  assert.equal(f.calls.length, 1);
+  const wrong = fake(c => env({ status: 200, data: meta(Buffer.from('unchanged'), { parents: [{ id: 'foreign_folder_123' }] }) }));
+  await assert.rejects(createFileTransport({ ...options, fetchImpl: wrong.impl }).read({ etag: ETAG }), { code: 'ERR_DRIVE_FILE_BINDING' });
+});
+
 test('read rejects disallowed hosts, http, userinfo and oversized or mismatched downloads', async () => {
   const bytes = Buffer.from('synthetic bytes');
   for (const url of ['https://evil.invalid/object', 'http://synthetic-bucket.s3.amazonaws.com/o', 'https://user:pw@synthetic-bucket.s3.amazonaws.com/o',

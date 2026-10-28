@@ -41,6 +41,8 @@ const ROOT_FILES = new Set([
   "test/cloud-erasure.test.mjs",
   "src/cloud-file-replica.mjs",
   "test/cloud-file-replica.test.mjs",
+  "src/cloud-key.mjs",
+  "test/cloud-key.test.mjs",
   "test/cloud-chunks.test.mjs",
   "test/cloud-live.test.mjs",
   "test/cloud-replica.test.mjs",
@@ -191,6 +193,7 @@ export function checkPublication(root) {
   }
   const commits = git(root, ["rev-list", "--all"]).trim().split(/\r?\n/u).filter(Boolean);
   let historyFiles = 0;
+  const inspectedHistory = new Set();
   for (const commit of commits) {
     const entries = git(root, ["ls-tree", "-r", "-z", commit]).split("\0").filter(Boolean);
     if (entries.length > 128) throw new Error("Unexpected historical inventory.");
@@ -200,7 +203,12 @@ export function checkPublication(root) {
         throw new Error("Unexpected historical object type.");
       const name = match[3];
       if (!allowed(name)) throw new Error(`Unreviewed historical path: ${name}`);
-      inspectPublicFile(name, git(root, ["cat-file", "blob", match[2]]));
+      // Inspect each identical path/content pair once. Mode/path checks still run for every historical entry.
+      const contentKey = `${name}\0${match[2]}`;
+      if (!inspectedHistory.has(contentKey)) {
+        inspectPublicFile(name, git(root, ["cat-file", "blob", match[2]]));
+        inspectedHistory.add(contentKey);
+      }
       historyFiles++;
     }
   }
