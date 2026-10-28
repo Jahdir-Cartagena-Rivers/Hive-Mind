@@ -1,4 +1,17 @@
-# Hive Mind 0.4.1
+# Hive Mind 0.5.0
+
+- Add opt-in encrypted Drive synchronization through an explicitly selected Composio account.
+- Merge independent edits and report conflicting corrections without silently overwriting them.
+- Propagate Forget and remove tracked older Drive backups that may contain forgotten content.
+- Protect cloud keys on Windows with DPAPI and on remote hosts with their existing protected credential environment.
+- Sync in the desktop background and show connection, conflict and deletion-cleanup status.
+
+Drive sync requires private host configuration and protected-key provisioning.
+Upgrading does not move an existing store or connect an account automatically.
+Offline clients apply deletions when they reconnect; provider internal backups
+and independently retained copies are outside the sync service's deletion scope.
+
+## Previous release: 0.4.1
 
 - See connected chats' current activity in the desktop app and relevant working context.
 - Flag chats working on the same task and remove stale activity automatically.

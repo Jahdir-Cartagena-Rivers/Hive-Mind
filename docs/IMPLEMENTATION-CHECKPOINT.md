@@ -1,5 +1,24 @@
 # Hive Mind continuity implementation checkpoint
 
+Drive source checkpoint (2026-10-27): feat/drive-sync-20261027 adds validated
+encrypted archives, three-way merge, permanent ID deletion markers, conditional
+single-file Drive updates through Composio, resumable transfers, exact revision
+cleanup and protected key provisioning. Desktop sync is opt-in through private
+host configuration; no live profile or account is configured by installation.
+139 Node tests and67 core tests passed. Publication130file scan passed.
+Source5c4e290 CI40616180307 passed. Synthetic cross-host3MiB asset roundtrip,
+stale-client Forget and old revision absence passed. A dedicated real desktop
+background pull with a protected fixture key passed; installed connection stayed
+unchanged. Ordinary and offline-worker desktop smoke passed. Version0.5.0
+packaged desktop also passed continuity plus the actual missing-key offline worker,
+and a separate live synthetic background pull with a protected fixture key and
+the installed connection unchanged. The first private packaged live-test launch
+inherited Electron's Node-mode flag and exited before startup; clearing that flag
+in the harness fixed the launch. No product change was required.
+Real canonical memory migration, protected portal
+credential access, and Auto Apply executor transfer remain separate deployment
+work; source publication is not evidence they occurred.
+
 Presence validation follow-up (2026-10-26): `node scripts/test-j1-presence.mjs
 C:/Projects/J1_Code` passed with two actual J1 LivePresence reporters and an
 isolated Hive service: streamed activity, same-task overlap, other-chat context,
