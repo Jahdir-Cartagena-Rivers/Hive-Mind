@@ -15,6 +15,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { startHiveMind } from "../src/service.mjs";
+import { exportPlugin } from "../src/plugin-package.mjs";
+import { createConnector, validateOptions } from "../plugin/runtime.mjs";
 import { subscribeHiveChanges } from "../src/core/store.ts";
 import { createUpdater, launchInstaller } from "./updater.mjs";
 import { readDesktopCloudSettings, startDesktopCloudSync } from "../src/cloud-scheduler.mjs";
@@ -297,6 +299,27 @@ function registerIpc() {
     }, 30_000).unref();
     return true;
   });
+  ipcMain.handle("hive:export-plugin", async (event, input) => {
+    if (!trusted(event)) throw new Error("Operation not allowed.");
+    const options = validateOptions({ ...input, version: 1, connectionFile });
+    const result = SMOKE ? { canceled: false, filePaths: [app.getPath('userData')] } : await dialog.showOpenDialog(window, {
+      title: "Choose where to save your Hive Mind plugin", properties: ["openDirectory", "createDirectory"],
+    });
+    if (result.canceled || !result.filePaths[0]) return null;
+    const destination = path.join(result.filePaths[0], `Hive-Mind-Plugin-${app.getVersion()}-${Date.now()}`);
+    const exported = await exportPlugin({ destination, ...options });
+    if (!SMOKE) await shell.openPath(destination);
+    return exported;
+  });
+  ipcMain.handle("hive:check-connector", async (event) => {
+    if (!trusted(event)) throw new Error("Operation not allowed.");
+    const check = createConnector({ version: 1, access: "read", connectionFile });
+    const response = await check({ jsonrpc: "2.0", id: 1, method: "initialize", params: {
+      protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "Hive Mind setup", version: "1" },
+    } });
+    if (response.error) throw new Error(response.error.message);
+    return "Hive Mind is ready for local AI connections.";
+  });
   ipcMain.handle("hive:login-item", (event, enabled) => {
     if (trusted(event)) app.setLoginItemSettings({ openAtLogin: enabled === true });
     return app.getLoginItemSettings().openAtLogin;
@@ -498,6 +521,28 @@ async function smoke() {
       })`,
     );
     if (!report.live.shown) report.error = "Live chat strip did not show a reported chat.";
+  }
+  if (!report.error) {
+    report.plugin = await window.webContents.executeJavaScript(`(async () => {
+      document.getElementById('settings').click();
+      const wait = (check) => new Promise((resolve,reject) => { const start=Date.now();
+        const poll=()=>check()?resolve():Date.now()-start>10000?reject(new Error('Plugin setup timed out')):setTimeout(poll,30);poll(); });
+      await wait(()=>document.getElementById('config').open);
+      document.getElementById('plugin-check').click();
+      await wait(()=>document.getElementById('plugin-note').textContent.includes('ready for local AI'));
+      document.getElementById('plugin-scope').value='selected';
+      document.getElementById('plugin-scope').dispatchEvent(new Event('change'));
+      document.getElementById('plugin-export').click();
+      await wait(()=>document.getElementById('plugin-note').textContent.includes('at least one'));
+      document.getElementById('plugin-projects').value='Modeling studio';
+      document.getElementById('plugin-export').click();
+      await wait(()=>document.getElementById('plugin-note').textContent.includes('Plugin saved'));
+      document.getElementById('plugin-export').scrollIntoView({block:'center'});
+      return { connection:true, emptyProjectRejected:true, exported:true, note:document.getElementById('plugin-note').textContent };
+    })()`);
+    if (process.env.HIVE_MIND_SMOKE_SHOT) await fs.writeFile(
+      process.env.HIVE_MIND_SMOKE_SHOT.replace(/\.png$/u, '-plugin.png'), (await window.webContents.capturePage()).toPNG());
+    await window.webContents.executeJavaScript("document.getElementById('config').close()");
   }
   if (process.env.HIVE_MIND_SMOKE_SHOT) {
     await window.webContents.executeJavaScript(

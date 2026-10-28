@@ -193,6 +193,21 @@
           <code id="mcp"></code
           ><button type="button" id="copy-token" class="quiet">Copy token</button>
         </div>
+        <h3>Connect an AI</h3>
+        <p class="muted">Export a plugin for Codex, Claude Code or another local MCP app. Your credential stays on this computer.</p>
+        <label>Access
+          <select id="plugin-access"><option value="read">Read only</option><option value="write">Read and write</option></select>
+        </label>
+        <label>Projects
+          <select id="plugin-scope"><option value="all">All projects and references</option><option value="selected">Selected project facts</option></select>
+        </label>
+        <div id="plugin-project-options" hidden>
+          <label>Exact project names, one per line<textarea id="plugin-projects" rows="3"></textarea></label>
+          <label class="inline"><input type="checkbox" id="plugin-general" /> Include general facts</label>
+          <p class="muted">Selected-project connections share facts only. Tasks, files and other linked references require an all-project connection.</p>
+        </div>
+        <div class="row"><button type="button" id="plugin-check">Check connection</button><button type="button" id="plugin-export">Export plugin…</button></div>
+        <p id="plugin-note" class="muted" role="status">Start Hive Mind on the same computer as the AI client. Connect-account setup for cloud-only apps is still in development.</p>
         <h3>Import from Hindsight</h3>
         <p class="muted">Reads original documents from a Hindsight bank without changing it.</p>
         <div class="row">

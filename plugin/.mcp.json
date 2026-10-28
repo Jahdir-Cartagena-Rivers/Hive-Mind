@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "hive-mind": {
+      "command": "node",
+      "args": ["./runtime.mjs"],
+      "cwd": "."
+    }
+  }
+}

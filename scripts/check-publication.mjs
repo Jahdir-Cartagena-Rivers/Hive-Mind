@@ -5,6 +5,22 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const ROOT_FILES = new Set([
+  '.agents/plugins/marketplace.json',
+  '.claude-plugin/marketplace.json',
+  'plugin/runtime.mjs',
+  'plugin/connector.json',
+  'plugin/.mcp.json',
+  'plugin/mcp.claude.json',
+  'plugin/.codex-plugin/plugin.json',
+  'plugin/.claude-plugin/plugin.json',
+  'plugin/skills/shared-memory/SKILL.md',
+  'src/plugin-package.mjs',
+  'scripts/export-plugin.mjs',
+  'scripts/qualify-plugin-hosts.mjs',
+  'test/plugin.test.mjs',
+  'docs/plugins.md',
+  'docs/PLUGIN-CHECKPOINT.md',
+  'docs/ACCOUNT-CONNECT-PLAN.md',
   ".gitignore",
   ".gitattributes",
   "LICENSE",

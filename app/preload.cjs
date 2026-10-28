@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld("hive", {
   openVault: () => ipcRenderer.invoke("hive:open-vault"),
   connection: () => ipcRenderer.invoke("hive:connection"),
   copyToken: () => ipcRenderer.invoke("hive:copy-token"),
+  exportPlugin: (options) => ipcRenderer.invoke("hive:export-plugin", options),
+  checkConnector: () => ipcRenderer.invoke("hive:check-connector"),
   loginItem: (enabled) => ipcRenderer.invoke("hive:login-item", enabled),
   importImage: (metadata) => ipcRenderer.invoke("hive:import-image", metadata),
   importFile: (metadata) => ipcRenderer.invoke("hive:import-file", metadata),

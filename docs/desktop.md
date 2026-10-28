@@ -98,6 +98,12 @@ keyword-only and the graph shows project hubs without meaning links.
 
 ## Connecting other applications
 
+For Codex, Claude Code and other local MCP apps, use **Settings → Connect an AI**.
+Check the connection, choose access and projects, then export a plugin folder.
+Its start-here guide includes installation commands; credentials stay in the
+private host connection file. See the [AI plugin guide](plugins.md) for remote
+hosts, scope boundaries and setup from the repository.
+
 On startup the app writes `~/.hive-mind/connection.json` with the service origin,
 MCP address, and a bearer token (the file is readable only by your account).
 Applications that find this file can use:

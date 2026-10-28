@@ -620,6 +620,29 @@ $("copy-token").onclick = async () => {
   await window.hive.copyToken();
   $("config-note").textContent = "Token copied; it clears from the clipboard in 30 seconds.";
 };
+$("plugin-scope").onchange = () => {
+  $("plugin-project-options").hidden = $("plugin-scope").value !== "selected";
+};
+$("plugin-check").onclick = async () => {
+  $("plugin-note").textContent = "Checking connection…";
+  try { $("plugin-note").textContent = await window.hive.checkConnector(); }
+  catch (error) { $("plugin-note").textContent = error.message; }
+};
+$("plugin-export").onclick = async () => {
+  const button = $("plugin-export");
+  button.disabled = true;
+  try {
+    const options = { access: $("plugin-access").value };
+    if ($("plugin-scope").value === "selected") {
+      options.projects = $("plugin-projects").value.split(/\r?\n/u).map(p => p.trim()).filter(Boolean);
+      options.includeGeneral = $("plugin-general").checked;
+      if (!options.projects.length) throw new Error("Enter at least one exact project name.");
+    }
+    const result = await window.hive.exportPlugin(options);
+    $("plugin-note").textContent = result ? `Plugin saved to ${result.destination}. Open START_HERE.txt to connect your AI.` : "Export canceled.";
+  } catch (error) { $("plugin-note").textContent = error.message; }
+  finally { button.disabled = false; }
+};
 $("import").onclick = async () => {
   $("config-note").textContent = "Importing…";
   try {

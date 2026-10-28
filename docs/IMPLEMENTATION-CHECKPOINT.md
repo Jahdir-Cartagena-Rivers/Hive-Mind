@@ -1,5 +1,12 @@
 # Hive Mind continuity implementation checkpoint
 
+Active plugin follow-up (2026-10-28): see [PLUGIN-CHECKPOINT.md](PLUGIN-CHECKPOINT.md)
+for the token-free native-host connector, guided desktop export, isolation checks
+and publication state. [ACCOUNT-CONNECT-PLAN.md](ACCOUNT-CONNECT-PLAN.md) records
+the user's connect-Google-account target for cloud-only hosts; a user-managed
+domain is not a prerequisite. Existing canonical storage and installed clients
+are preserved by this work.
+
 Drive source checkpoint (2026-10-27): feat/drive-sync-20261027 adds validated
 encrypted archives, three-way merge, permanent ID deletion markers, conditional
 single-file Drive updates through Composio, resumable transfers, exact revision

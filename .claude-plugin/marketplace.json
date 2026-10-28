@@ -1,0 +1,7 @@
+{
+  "name": "hive-mind",
+  "owner": { "name": "Hive Mind" },
+  "plugins": [
+    { "name": "hive-mind", "source": "./plugin", "description": "Shared, inspectable AI memory and continuity.", "version": "0.6.0" }
+  ]
+}

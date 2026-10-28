@@ -1,0 +1,10 @@
+{
+  "name": "hive-mind",
+  "version": "0.6.0",
+  "description": "Shared, inspectable memory and task continuity across AI agents.",
+  "author": { "name": "Hive Mind" },
+  "license": "SEE LICENSE IN LICENSE",
+  "interface": { "displayName": "Hive Mind", "shortDescription": "Shared memory across AI agents", "developerName": "Hive Mind", "category": "Productivity" },
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}

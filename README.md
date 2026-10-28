@@ -18,6 +18,11 @@ them by meaning, edit or forget them, and manage the vault and skills folders, a
 inside Hive Mind. See the [desktop guide](docs/desktop.md). J1 Code and other tools
 connect through the MCP and HTTP endpoints instead of embedding Hive Mind.
 
+**Connect your AI with a plugin.** In Settings, choose **Connect an AI** to export
+a token-free Codex/Claude connector with read-only or read/write access and optional
+project fact filtering. Repository marketplace installation and other MCP hosts
+are covered in the [AI plugin guide](docs/plugins.md).
+
 **Source-available, with restrictive terms for new protected material.** Public
 access is not a general permission to reuse the new service implementation. The
 previously released core in [src/legacy](src/legacy) remains MIT. Read

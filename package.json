@@ -1,6 +1,6 @@
 {
   "name": "@hive-mind/core",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "private": true,
   "description": "Source-available Hive Mind standalone service with explicitly MIT legacy engine",
   "license": "SEE LICENSE IN LICENSE",
@@ -8,8 +8,11 @@
   "type": "module",
   "main": "app/main.mjs",
   "scripts": {
+    "export:plugin": "node scripts/export-plugin.mjs",
+    "test:plugin": "node --test test/plugin.test.mjs",
+    "qualify:plugin-hosts": "node scripts/qualify-plugin-hosts.mjs",
     "start": "node src/cli.mjs",
-    "test": "node --test test/service.test.mjs test/continuity.test.mjs test/presence.test.mjs test/visual.test.mjs test/publication.test.mjs test/updater.test.mjs test/cloud-journal.test.mjs test/cloud-archive.test.mjs test/cloud-merge.test.mjs test/cloud-live.test.mjs test/cloud-replica.test.mjs test/cloud-chunks.test.mjs test/composio-drive-transport.test.mjs test/cloud-erasure.test.mjs test/cloud-file-replica.test.mjs test/composio-drive-file.test.mjs test/cloud-key.test.mjs test/cloud-scheduler.test.mjs test/sealed-credential.test.mjs test/cloud-host.test.mjs && vp test run",
+    "test": "node --test test/plugin.test.mjs test/service.test.mjs test/continuity.test.mjs test/presence.test.mjs test/visual.test.mjs test/publication.test.mjs test/updater.test.mjs test/cloud-journal.test.mjs test/cloud-archive.test.mjs test/cloud-merge.test.mjs test/cloud-live.test.mjs test/cloud-replica.test.mjs test/cloud-chunks.test.mjs test/composio-drive-transport.test.mjs test/cloud-erasure.test.mjs test/cloud-file-replica.test.mjs test/composio-drive-file.test.mjs test/cloud-key.test.mjs test/cloud-scheduler.test.mjs test/sealed-credential.test.mjs test/cloud-host.test.mjs && vp test run",
     "test:cloud": "node --test test/cloud-journal.test.mjs test/cloud-archive.test.mjs test/cloud-merge.test.mjs test/cloud-live.test.mjs test/cloud-replica.test.mjs test/cloud-chunks.test.mjs test/composio-drive-transport.test.mjs test/cloud-erasure.test.mjs test/cloud-file-replica.test.mjs test/composio-drive-file.test.mjs test/cloud-key.test.mjs test/cloud-scheduler.test.mjs test/sealed-credential.test.mjs test/cloud-host.test.mjs",
     "test:service": "node --test test/service.test.mjs",
     "test:continuity": "node --test test/continuity.test.mjs",
@@ -50,6 +53,7 @@
     "files": [
       "app/**",
       "src/**",
+      "plugin/**",
       "assets/**",
       "scripts/cloud-sync-once.mjs",
       "scripts/read-sealed-credential.mjs",

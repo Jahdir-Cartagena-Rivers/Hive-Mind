@@ -15,9 +15,21 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: node --test test/updater.test.mjs test/service.test.mjs
+      - run: node --test test/plugin.test.mjs test/updater.test.mjs test/service.test.mjs
       - run: npm run dist -- --x64 --publish never
       - run: node scripts/update-manifest.mjs
+      - name: Package standalone AI plugin
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          node scripts/export-plugin.mjs --output "dist/Hive-Mind-Plugin-$version"
+          if ($LASTEXITCODE -ne 0) { throw 'Plugin export failed' }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $source = (Resolve-Path "dist/Hive-Mind-Plugin-$version").Path
+          $zip = Join-Path (Resolve-Path dist).Path "Hive-Mind-Plugin-$version.zip"
+          [System.IO.Compression.ZipFile]::CreateFromDirectory($source, $zip)
+          $manifest = @{ version=$version; filename="Hive-Mind-Plugin-$version.zip"; sha256=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLower(); size=(Get-Item -LiteralPath $zip).Length; sourceCommit=$env:GITHUB_SHA }
+          $manifest | ConvertTo-Json | Set-Content -Encoding utf8 dist/hive-mind-plugin.json
       - name: Publish verified update assets
         shell: pwsh
         env:
@@ -28,5 +40,5 @@ jobs:
           if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne $tag) { throw 'Tag and package versions differ' }
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) { throw 'Release already exists; immutable assets must not be replaced' }
-          gh release create $tag "dist/Hive-Mind-Setup-$version-x64.exe" dist/hive-mind-update.json --target $env:GITHUB_SHA --title "Hive Mind $version" --notes-file RELEASE_NOTES.md
+          gh release create $tag "dist/Hive-Mind-Setup-$version-x64.exe" dist/hive-mind-update.json "dist/Hive-Mind-Plugin-$version.zip" dist/hive-mind-plugin.json --target $env:GITHUB_SHA --title "Hive Mind $version" --notes-file RELEASE_NOTES.md
           if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }

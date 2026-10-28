@@ -1,4 +1,17 @@
-# Hive Mind 0.5.2
+# Hive Mind 0.6.0
+
+- Connect AI clients through a dependency-free MCP plugin using the existing private host connection.
+- Export a token-free Codex/Claude plugin from Settings, with read-only/read-write access and optional exact project fact filtering.
+- Install through the repository's Codex or Claude marketplace, or configure another stdio MCP host.
+- Include shared-memory guidance for recall, corrections, tasks and forgetting.
+
+Project restrictions apply at this connector; the underlying service credential
+is unchanged. Selected-project connections expose facts only. Full-store
+connections retain task and reference tools. No storage migration occurs.
+Public cloud OAuth hosting and first-time Drive account/key provisioning are
+separate setup work. Plugin installation does not guarantee automatic agent use.
+
+## Previous release: 0.5.2
 
 - Keep status available after the retained change-event window advances.
 - Start fresh event subscriptions at the current head while still rejecting expired replay cursors.
