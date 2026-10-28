@@ -527,6 +527,12 @@ async function refresh(force = false) {
       status.phase === "syncing" || status.phase === "degraded",
     ),
   ];
+  if (status.driveSync?.enabled) {
+    const labels = { synced: 'Drive synced', syncing: 'Drive syncing', pending: 'Drive changes pending',
+      conflict: 'Drive changes need review', 'cleanup-pending': 'Drive deletion pending', offline: 'Drive sync unavailable',
+      'configuration-error': 'Drive connection needs setup' };
+    chips.push(chip(labels[status.driveSync.state] ?? 'Drive changes pending', !['synced', 'syncing'].includes(status.driveSync.state)));
+  }
   if (status.issues?.length) {
     const issues = chip(`${status.issues.length} issue(s)`, true);
     issues.title = status.issues.join("\n");

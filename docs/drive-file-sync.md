@@ -84,9 +84,31 @@ exclusive writes, rejects linked paths and preserves existing material on failur
 Generated-key tests include native Windows DPAPI; real provisioning is a separate
 operational step, not something source installation performs automatically.
 
-The source transport adapter, real cross-host file-mode trial, full-size real-store
-preflight, restart/scheduling, protected credential vault and final single-executor
-handoff still need qualification. No canonical memory or application state has moved.
+The transport has passed a synthetic cross-host trial with a 3MiB retained file:
+Windows seeded, the remote client joined without a redundant upload and added a
+reply, Windows received that reply and forgot its seed and retained file, then the
+stale remote client applied both deletions. Exact obsolete Drive revision IDs
+returned404; the current decrypted archive retained the unrelated reply and no
+forgotten content. This qualifies the tested path, not every provider failure.
+
+The desktop can opt into background sync using a private `drive-sync.json` in its
+Electron user-data directory. It must contain version1, enabled:true, workspace,
+client, bootstrap, an absolute protectedKeyFile, optional protected
+composioCredentialFile, and transportOptions with all five exact account/file
+bindings listed above. Optional pollIntervalMs is between30000 and86400000;
+the default is300000. No raw key or executable adapter path is accepted here.
+The app runs only its packaged worker, coalesces changes, checks periodically,
+and permits one worker at a time. The Sync button requests an immediate cycle.
+Status distinguishes syncing, synced, conflicts, pending historical deletion,
+offline access and invalid host configuration. Local memory stays available when
+Drive is unavailable. Stopping the app stops its worker; this is not an OS service.
+
+A dedicated desktop profile passed a live background pull of the synthetic reply
+using a DPAPI-protected fixture key, without changing the installed connection.
+Offline-worker and ordinary continuity desktop smoke tests also passed. Installed
+clients remain unchanged. Real canonical data migration, protected credential
+vault access, packaged deployment and the final single-executor handoff remain.
+No canonical memory or application state has moved.
 The old journal prototype and its successful small synthetic erasure trial remain
 available as evidence. They must not be mixed with a file-mode cache or namespace.
 

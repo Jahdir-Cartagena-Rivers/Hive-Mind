@@ -43,6 +43,8 @@ const ROOT_FILES = new Set([
   "test/cloud-file-replica.test.mjs",
   "src/cloud-key.mjs",
   "test/cloud-key.test.mjs",
+  "src/cloud-scheduler.mjs",
+  "test/cloud-scheduler.test.mjs",
   "test/cloud-chunks.test.mjs",
   "test/cloud-live.test.mjs",
   "test/cloud-replica.test.mjs",
@@ -183,7 +185,7 @@ export function inspectPublicFile(name, contents) {
 
 export function checkPublication(root) {
   const files = git(root, ["ls-files", "-z"]).split("\0").filter(Boolean);
-  if (!files.length || files.length > 128) throw new Error("Unexpected tracked inventory.");
+  if (!files.length || files.length > 256) throw new Error("Unexpected tracked inventory.");
   for (const name of files) {
     const file = path.join(root, name);
     const stat = fs.lstatSync(file);
@@ -196,7 +198,7 @@ export function checkPublication(root) {
   const inspectedHistory = new Set();
   for (const commit of commits) {
     const entries = git(root, ["ls-tree", "-r", "-z", commit]).split("\0").filter(Boolean);
-    if (entries.length > 128) throw new Error("Unexpected historical inventory.");
+    if (entries.length > 256) throw new Error("Unexpected historical inventory.");
     for (const entry of entries) {
       const match = entry.match(/^(\d+) blob ([a-f0-9]+)\t(.+)$/u);
       if (!match || !["100644", "100755"].includes(match[1]))

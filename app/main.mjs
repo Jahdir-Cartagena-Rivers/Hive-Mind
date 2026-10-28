@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 import { startHiveMind } from "../src/service.mjs";
 import { subscribeHiveChanges } from "../src/core/store.ts";
 import { createUpdater, launchInstaller } from "./updater.mjs";
+import { readDesktopCloudSettings, startDesktopCloudSync } from "../src/cloud-scheduler.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SMOKE = process.env.HIVE_MIND_SMOKE === "1";
@@ -25,6 +26,8 @@ if (SMOKE) {
   const profile = process.env.HIVE_MIND_SMOKE_PROFILE;
   if (!profile || !path.isAbsolute(profile))
     throw new Error("Desktop smoke requires an absolute dedicated HIVE_MIND_SMOKE_PROFILE.");
+  if (!path.isAbsolute(process.env.HIVE_MIND_CONNECTION_FILE ?? ''))
+    throw new Error('Desktop smoke requires its own absolute HIVE_MIND_CONNECTION_FILE.');
   await fs.mkdir(profile, { recursive: true });
   app.setPath("userData", profile);
 }
@@ -57,6 +60,8 @@ let window;
 let tray;
 let updater;
 let updateInterval;
+let cloudManager;
+let cloudConfigurationError = false;
 let pendingInstaller;
 let quitting = false;
 let previewQueue = Promise.resolve();
@@ -96,7 +101,13 @@ async function call(route, body) {
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
-  return { status: response.status, value: await response.json() };
+  const value = await response.json();
+  if (route === "/v1/sync" && response.ok) await cloudManager?.syncNow();
+  if (route === "/v1/status") {
+    const drive = cloudManager?.status() ?? (cloudConfigurationError ? { enabled: true, state: 'configuration-error' } : null);
+    if (drive) value.driveSync = drive;
+  }
+  return { status: response.status, value };
 }
 
 function trusted(event) {
@@ -393,6 +404,22 @@ async function smoke() {
     console.log(`RENDERER ${event.level}: ${event.message}`),
   );
   await new Promise((resolve) => window.webContents.once("did-finish-load", resolve));
+  if (process.env.HIVE_MIND_SMOKE_CLOUD_ONLY === '1') {
+    const deadline = Date.now() + 90000;
+    while (cloudManager && cloudManager.status().state !== 'synced' && Date.now() < deadline) {
+      if (['offline', 'conflict', 'cleanup-pending'].includes(cloudManager.status().state)) break;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    const status = await call('/v1/status');
+    await window.webContents.executeJavaScript('refresh(true)');
+    const visible = await window.webContents.executeJavaScript("document.getElementById('stats').textContent.includes('Drive synced')");
+    const report = { drive: status.value.driveSync, memories: status.value.records,
+      continuityRecords: status.value.continuity?.records, visible };
+    if (!visible || status.value.driveSync?.state !== 'synced') report.error = 'Background Drive trial did not synchronize.';
+    if (process.env.HIVE_MIND_SMOKE_SHOT) await fs.writeFile(process.env.HIVE_MIND_SMOKE_SHOT, (await window.webContents.capturePage()).toPNG());
+    console.log(`SMOKE ${JSON.stringify(report)}`);
+    await cloudManager?.stop(); await service.close(); app.exit(report.error ? 1 : 0); return;
+  }
   const report = await window.webContents.executeJavaScript(
     `new Promise((resolve) => {
       const started = Date.now();
@@ -520,7 +547,17 @@ async function smoke() {
       (await window.webContents.capturePage()).toPNG(),
     );
   }
+  if (process.env.HIVE_MIND_SMOKE_DRIVE === '1') {
+    await cloudManager.syncNow();
+    const status = (await call('/v1/status')).value.driveSync;
+    await window.webContents.executeJavaScript('refresh()');
+    const visible = await window.webContents.executeJavaScript("document.getElementById('stats').textContent.includes('Drive sync unavailable')");
+    report.drive = { enabled: status?.enabled, state: status?.state, errorCode: status?.errorCode, visible };
+    if (!status?.enabled || status.state !== 'offline' || status.errorCode !== 'ENOENT' || !visible)
+      report.error = 'Desktop Drive worker did not preserve offline memory or expose its safe connection state.';
+  }
   console.log(`SMOKE ${JSON.stringify(report)}`);
+  await cloudManager?.stop();
   await service.close();
   app.exit(report.error ? 1 : 0);
 }
@@ -528,13 +565,21 @@ async function smoke() {
 app.whenReady().then(async () => {
   try {
     const userData = app.getPath("userData");
+    let cloudSettings;
+    try { cloudSettings = await readDesktopCloudSettings(userData); }
+    catch { cloudConfigurationError = true; }
     token = await loadToken(userData);
     service = await startHiveMind({
       stateDirectory: process.env.HIVE_MIND_STATE_DIR ?? path.join(userData, "data"),
       token,
       port: PORT,
+      cloudSyncEnabled: Boolean(cloudSettings),
     });
     await writeConnection();
+    if (cloudSettings) cloudManager = startDesktopCloudSync({ settings: cloudSettings, userData, origin: service.origin,
+      tokenFile: path.join(userData, 'service-token'), onChange: () => {
+        if (window && !window.isDestroyed()) window.webContents.send('hive:changed');
+      } });
   } catch (error) {
     dialog.showErrorBox("Hive Mind could not start", String(error.message ?? error));
     app.exit(1);
@@ -542,6 +587,7 @@ app.whenReady().then(async () => {
   }
   registerIpc();
   subscribeHiveChanges(path.join(service.stateDirectory, "hive-mind.json"), () => {
+    cloudManager?.changed();
     if (window && !window.isDestroyed()) window.webContents.send("hive:changed");
   });
   service.onStatusChange(() => {
@@ -553,6 +599,7 @@ app.whenReady().then(async () => {
       await smoke();
     } catch (error) {
       console.log(`SMOKE ${JSON.stringify({ error: String(error?.message ?? error) })}`);
+      await cloudManager?.stop();
       await service.close();
       app.exit(1);
     }
@@ -580,8 +627,8 @@ app.on("before-quit", (event) => {
   event.preventDefault();
   quitting = true;
   clearInterval(updateInterval);
-  void service
-    .close()
+  void Promise.resolve(cloudManager?.stop())
+    .then(() => service.close())
     .then(async () => {
       if (pendingInstaller) await launchInstaller(pendingInstaller);
     })

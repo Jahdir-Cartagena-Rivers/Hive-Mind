@@ -42,6 +42,12 @@ vault synchronization, skill cataloging, and explicit source-bank import.
 See the [API and setup guide](docs/service.md). Use the
 [synthetic fixtures](examples/README.md) to explore the record format.
 
+An opt-in Drive sync implementation is in source staging. It uses encrypted
+conditional updates through an explicitly bound Composio account, protected host
+keys and three-way merge. Forget also removes tracked older cloud backups, with
+pending cleanup reported separately. See [Drive sync](docs/drive-file-sync.md)
+for configuration, qualification evidence and remaining deployment work.
+
 ## How it fits together
 
 ```mermaid

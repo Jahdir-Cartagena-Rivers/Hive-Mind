@@ -137,6 +137,15 @@ const env = {
   HIVE_MIND_CONNECTION_FILE: path.join(evidence, "connection.json"),
   HIVE_MIND_SMOKE_SHOT: path.join(evidence, "desktop.png"),
 };
+if (process.env.HIVE_MIND_SMOKE_DRIVE === '1') {
+  await fs.mkdir(env.HIVE_MIND_SMOKE_PROFILE, { recursive: true });
+  // Deliberately absent protected key: exercise the actual packaged worker and safe offline UI without any network call.
+  await fs.writeFile(path.join(env.HIVE_MIND_SMOKE_PROFILE, 'drive-sync.json'), JSON.stringify({ version: 1, enabled: true,
+    workspace: 'synthetic-desktop-drive', client: 'desktop-smoke', bootstrap: 'join',
+    protectedKeyFile: path.join(evidence, 'intentionally-missing.protected.json'), transportOptions: {
+      folderId: 'synthetic_folder_12345', fileId: 'synthetic_file_12345', expectedName: 'synthetic.enc',
+      userId: 'synthetic-user', connectedAccountId: 'synthetic_account_123' } }));
+}
 delete env.ELECTRON_RUN_AS_NODE;
 const executable = process.env.HIVE_MIND_SMOKE_EXECUTABLE ?? devExecutable;
 if (!path.isAbsolute(executable)) throw new Error("Smoke executable must be an absolute path.");
