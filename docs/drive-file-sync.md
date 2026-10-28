@@ -116,3 +116,25 @@ Primary API references: [Composio proxy](https://docs.composio.dev/reference/v3/
 [Drive uploads](https://developers.google.com/workspace/drive/api/guides/manage-uploads),
 [Drive v2 file metadata](https://developers.google.com/workspace/drive/api/reference/rest/v2/files),
 [revision management](https://developers.google.com/workspace/drive/api/guides/manage-revisions).
+
+## Sealed application credentials (source staging)
+
+`sealed-credential.mjs` can encrypt a single credential as an opaque retained file
+asset. A separate HKDF-derived key and authenticated workspace, credential name
+and account binding separate it from ordinary memory encryption. Neither the
+password nor its plaintext account label is placed in searchable memory. The
+outer Drive archive is encrypted as well. Existing asset Forget and history
+erasure apply to this attachment; independent backups remain outside that scope.
+
+The fixed `read-sealed-credential.mjs` helper consumes a small private JSON request
+on stdin and returns a credential only on stdout captured by the application.
+Do not invoke it as a model-facing tool or send its output to logs. Its host-owned
+configuration supplies an HTTP127.0.0.1 origin, tokenFile, workspace,
+protectedKeyFile, and bindings keyed by credential name; each binding supplies
+the exact assetId, owner account and selected application's storePath. Another
+profile, account or credential name rejects. The helper fetches only bounded
+encrypted asset bytes, refuses redirects and returns no credential after Forget.
+Composio's own project credential stays in the host's protected mechanism.
+
+This source capability does not migrate any existing portal password. Account
+validation at an employer and permission for final actions remain separate.
