@@ -138,3 +138,19 @@ Composio's own project credential stays in the host's protected mechanism.
 
 This source capability does not migrate any existing portal password. Account
 validation at an employer and permission for final actions remain separate.
+
+## Headless host
+
+`node scripts/cloud-host.mjs <absolute-private-profile> <port>` runs one local
+Hive service and the same background sync coordinator. The profile must already
+contain enabled private drive-sync.json configuration; resolve linked parent
+paths first. A newly generated local bearer token is stored0600 as service-token,
+never in argv or logs. Its data/ and drive-cache/ remain separate from other
+profiles. Duplicate owners reject; graceful SIGINT/SIGTERM drains the worker and
+service. Status output contains no memory or credential bodies.
+
+The process can pull and push while its machine is awake without a language-model
+turn per cycle. A host-specific supervisor or wake routine must restart it after
+machine shutdown; this command does not install an operating-system service or
+guarantee a provider's wake schedule. Keep its launch command fixed and inherit
+the protected credential environment directly, never expand secrets into argv.

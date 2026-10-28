@@ -48,6 +48,8 @@ const ROOT_FILES = new Set([
   "src/sealed-credential.mjs",
   "scripts/read-sealed-credential.mjs",
   "test/sealed-credential.test.mjs",
+  "scripts/cloud-host.mjs",
+  "test/cloud-host.test.mjs",
   "test/cloud-chunks.test.mjs",
   "test/cloud-live.test.mjs",
   "test/cloud-replica.test.mjs",
