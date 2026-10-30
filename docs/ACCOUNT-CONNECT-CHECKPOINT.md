@@ -1,5 +1,43 @@
 # Account-connect implementation checkpoint — 2026-10-29
 
+## Native connector correction and current next action
+
+The user explicitly rejects the instructions-only ZIP as the requested outcome.
+Completion requires a host-recognized connection with callable Hive Mind tools.
+Do not substitute another skill/package for registration and real tool calls.
+Existing Drive/Composio and no-paid-hosting constraints persist.
+
+Official Grok Bot computer/apps documentation now confirms it can add an MCP
+server by a command running on its own cloud computer, available across its Bots.
+This is distinct from grok.com's public-URL-only connector form. Prefer the
+already implemented stdio bridge beside the existing remote Hive host; no desktop
+app or paid hosting is required by that route. Inspect the existing profile/path
+and privately bind the bridge to it, rather than guessing token or service paths.
+Native app is signed in to Auro Apai; its screen showed computer asleep and82%
+usage. Keep any Auro request bounded to registration/status/tool proof.
+
+Computer Use was stopped by the user with physical Escape when opening Connect
+apps. No connector was registered and no further Windows automation was issued.
+On resumption, reobserve the app; do not reuse screenshot coordinates or indexes.
+The separate Grok web preview is signed out. Do not equate that with absence of
+the native Bot session or switch products silently.
+
+ChatGPT's documented private Secure MCP Tunnel can carry actual stdio/HTTP MCP
+tools without a public listener. It requires a Platform tunnel, runtime key,
+workspace association and a running tunnel-client on a reachable remote host;
+no user-owned-home-PC listener is intended. Account availability and any costs
+must be checked against the no-paid-hosting constraint before selecting it.
+Public connector endpoint/tunnel is an alternative, not a mandatory Cloud Run
+deployment. Native Dot connection has not been inspected or registered yet.
+
+Sources: https://docs.x.ai/grok-bot/computer-and-apps and
+https://developers.openai.com/api/docs/guides/secure-mcp-tunnels.
+
+Next: finish native GrokBot command-MCP registration using the existing bridge
+and remote brain, then list actual tools and prove scoped recall/save/correction/
+Forget with synthetic data. Inspect Dot's real connector UI separately. Keep
+current store, credentials and application processing unchanged.
+
 Current user decision: additional potentially paid hosting is off the table.
 Do not activate billing or deploy Cloud Run. Target existing Grokbot/Auro and
 ChatGPT Dot computers, preserving shared Drive and Composio. Account-link code
