@@ -12,7 +12,7 @@
     "test:plugin": "node --test test/plugin.test.mjs",
     "qualify:plugin-hosts": "node scripts/qualify-plugin-hosts.mjs",
     "start": "node src/cli.mjs",
-    "test": "node --test test/plugin.test.mjs test/service.test.mjs test/continuity.test.mjs test/presence.test.mjs test/visual.test.mjs test/publication.test.mjs test/updater.test.mjs test/cloud-journal.test.mjs test/cloud-archive.test.mjs test/cloud-merge.test.mjs test/cloud-live.test.mjs test/cloud-replica.test.mjs test/cloud-chunks.test.mjs test/composio-drive-transport.test.mjs test/cloud-erasure.test.mjs test/cloud-file-replica.test.mjs test/composio-drive-file.test.mjs test/cloud-key.test.mjs test/cloud-scheduler.test.mjs test/sealed-credential.test.mjs test/cloud-host.test.mjs && vp test run",
+    "test": "node --test test/account-link.test.mjs test/plugin.test.mjs test/service.test.mjs test/continuity.test.mjs test/presence.test.mjs test/visual.test.mjs test/publication.test.mjs test/updater.test.mjs test/cloud-journal.test.mjs test/cloud-archive.test.mjs test/cloud-merge.test.mjs test/cloud-live.test.mjs test/cloud-replica.test.mjs test/cloud-chunks.test.mjs test/composio-drive-transport.test.mjs test/cloud-erasure.test.mjs test/cloud-file-replica.test.mjs test/composio-drive-file.test.mjs test/cloud-key.test.mjs test/cloud-scheduler.test.mjs test/sealed-credential.test.mjs test/cloud-host.test.mjs && vp test run",
     "test:cloud": "node --test test/cloud-journal.test.mjs test/cloud-archive.test.mjs test/cloud-merge.test.mjs test/cloud-live.test.mjs test/cloud-replica.test.mjs test/cloud-chunks.test.mjs test/composio-drive-transport.test.mjs test/cloud-erasure.test.mjs test/cloud-file-replica.test.mjs test/composio-drive-file.test.mjs test/cloud-key.test.mjs test/cloud-scheduler.test.mjs test/sealed-credential.test.mjs test/cloud-host.test.mjs",
     "test:service": "node --test test/service.test.mjs",
     "test:continuity": "node --test test/continuity.test.mjs",
@@ -25,7 +25,8 @@
     "preapp": "node scripts/make-icon.mjs",
     "predist": "node scripts/make-icon.mjs",
     "predist:dir": "node scripts/make-icon.mjs",
-    "test:updater": "node --test test/updater.test.mjs"
+    "test:updater": "node --test test/updater.test.mjs",
+    "test:accounts": "node --test test/account-link.test.mjs"
   },
   "dependencies": {
     "@huggingface/tokenizers": "0.2.0",

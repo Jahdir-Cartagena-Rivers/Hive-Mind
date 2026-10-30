@@ -5,6 +5,10 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const ROOT_FILES = new Set([
+  'src/account-link.mjs',
+  'test/account-link.test.mjs',
+  'scripts/check-account-link.mjs',
+  'docs/ACCOUNT-CONNECT-CHECKPOINT.md',
   '.agents/plugins/marketplace.json',
   '.claude-plugin/marketplace.json',
   'plugin/runtime.mjs',

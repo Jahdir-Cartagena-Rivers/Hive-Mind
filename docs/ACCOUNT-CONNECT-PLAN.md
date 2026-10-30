@@ -1,5 +1,9 @@
 # Account-connect onboarding — 2026-10-28
 
+Implementation started2026-10-29 under explicit user instruction. See
+[ACCOUNT-CONNECT-CHECKPOINT.md](ACCOUNT-CONNECT-CHECKPOINT.md) for verified live
+account access, staged code and current deployment prerequisites.
+
 User contract: install Hive Mind, connect the intended Google account, choose the
 existing brain or create a new one, and connect an AI. Users do not supply a
 domain or manage a server. Drive remains canonical storage. The user is open to
