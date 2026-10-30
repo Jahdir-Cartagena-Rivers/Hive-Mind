@@ -48,6 +48,15 @@ export function createCloudScheduler({ run, onChange = () => {}, pollIntervalMs 
   const poll = setInterval(() => { void syncNow(false); }, pollIntervalMs); poll.unref?.();
   schedule(1);
   return { status: () => ({ ...state }), syncNow,
+    async flush() {
+      // A request joining an older active pass must also drain changes queued
+      // during that pass. Otherwise its result could acknowledge unsent writes.
+      for (let pass = 0; pass < 4; pass++) {
+        await syncNow();
+        if (!pending || stopped) return { ...state };
+      }
+      return { ...state, state: 'pending' };
+    },
     changed() { if (stopped) return; pending = true; if (!active) emit({ state: 'pending' }); schedule(debounceMs); },
     async stop() {
       stopped = true; pending = false; clearTimeout(timer); clearInterval(poll); controller?.abort();

@@ -157,7 +157,9 @@ async function readBody(request, limit = MAX_BODY) {
   }
 }
 
-export async function startHiveMind({ stateDirectory, token, readToken, port = 8788, cloudSyncEnabled = false }) {
+export async function startHiveMind({ stateDirectory, token, readToken, port = 8788, cloudSyncEnabled = false, cloudControl }) {
+  if (cloudControl && (!cloudSyncEnabled || typeof cloudControl.status !== 'function' || typeof cloudControl.flush !== 'function'))
+    throw new Error('Invalid cloud coordinator.');
   if (typeof cloudSyncEnabled !== 'boolean') throw new Error('Invalid cloud sync enablement.');
   if (typeof token !== "string" || token.length < 32 || /\s/u.test(token))
     throw new Error("HIVE_MIND_TOKEN must contain at least 32 non-whitespace characters.");
@@ -325,6 +327,7 @@ data: ${JSON.stringify({ presence: presence.list() })}
       if (request.method === "GET" && url.pathname === "/v1/status")
         return respond(response, 200, {
           ...(await runtime.snapshot()),
+          ...(cloudControl ? { driveSync: cloudControl.status() } : {}),
           continuity: {
             sequence: (await readHiveMind(file)).continuity?.sequence ?? 0,
             records: (await readHiveMind(file)).continuity?.records.length ?? 0,
@@ -431,6 +434,7 @@ data: ${JSON.stringify({ presence: presence.list() })}
         return respond(response, 200, reply);
       }
       const operations = new Set([
+        ...(cloudControl ? ['/v1/cloud/flush'] : []),
         ...(cloudSyncEnabled ? ['/v1/cloud/snapshot', '/v1/cloud/apply'] : []),
         "/v1/graph",
         "/v1/memory",
@@ -471,6 +475,9 @@ data: ${JSON.stringify({ presence: presence.list() })}
       );
       let result;
       switch (url.pathname) {
+        case '/v1/cloud/flush':
+          result = await cloudControl.flush();
+          break;
         case '/v1/cloud/snapshot':
           result = await liveCloudSnapshot(file);
           break;

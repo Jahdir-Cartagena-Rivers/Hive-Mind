@@ -1,5 +1,28 @@
 # Account-connect implementation checkpoint — 2026-10-29
 
+## Current offline write-repair work
+
+User says keep working with no computer use/Grok tasks yet, and forwards Auro's
+report of readable Hive but no safe write path. Preserve that prohibition. No
+live runtime diagnosis or deployment is claimed. See REMOTE-CONNECTOR.md for the
+actual native command adapter and deterministic registration preparation.
+The adapter now has explicit write mode, profile-bound discovery, coordinator
+flush and separate local/shared receipts; the scheduler drain handles a queued
+write joining an older sync pass. A sync-only MCP tool avoids write replay.
+Local synthetic tests exercise encrypted two-client transfer and erasure plus
+read-only/project/offline rejection and headless restart recovery. No exact pay
+or relocation values were supplied here; no applicant answers were changed.
+Validation: full local suite passes 165 Node tests plus 67 core tests. Final
+focused checks also cover conflict rejection, invalid-scope startup rejection,
+vault synchronization gating, actual stdio initialization and token-free native
+registration output. No external account or native host was contacted.
+Final focused run: 11 tests pass. Publication scan passes for 163 tracked files,
+59 reachable local commits and 6,072 historical files; staged whitespace check
+passes. Source is prepared on feat/account-connect-20261029, without release or
+installed-runtime changes.
+Next: native
+registration and real write receipts wait for authorized remote interaction.
+
 ## Native connector correction and current next action
 
 The user explicitly rejects the instructions-only ZIP as the requested outcome.
@@ -33,7 +56,7 @@ deployment. Native Dot connection has not been inspected or registered yet.
 Sources: https://docs.x.ai/grok-bot/computer-and-apps and
 https://developers.openai.com/api/docs/guides/secure-mcp-tunnels.
 
-Next: finish native GrokBot command-MCP registration using the existing bridge
+After the user authorizes remote interaction, finish native GrokBot command-MCP registration using the existing bridge
 and remote brain, then list actual tools and prove scoped recall/save/correction/
 Forget with synthetic data. Inspect Dot's real connector UI separately. Keep
 current store, credentials and application processing unchanged.
@@ -112,10 +135,11 @@ managed-runtime route before choosing additional infrastructure. The user has
 subsequently excluded additional potentially paid hosting explicitly; that later
 decision supersedes the prior conditional hosting evaluation.
 
-Next: load the remote skill through the existing supported instruction mechanism
-in Grokbot/Dot, retaining their configured account/store/helpers. Compare packaged
-recall/save/correction/Forget with the current working behavior before
-calling this up and running. Existing personal account need not reconnect.
+Superseded instructions-only next action: loading the remote skill is not
+completion. The current next action at the top governs: complete offline
+verification, then wait for authorization before native registration and real
+tool proof. Preserve the existing account/store/helpers without unnecessary
+reconnection.
 
 Sources consulted: https://docs.composio.dev/docs/configuring-sessions and
 https://docs.composio.dev/docs/authentication/manually-authenticating.

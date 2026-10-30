@@ -5,6 +5,7 @@ import { randomBytes } from 'node:crypto';
 import { startHiveMind, validateStateDirectory } from '../src/service.mjs';
 import { subscribeHiveChanges } from '../src/core/store.ts';
 import { readDesktopCloudSettings, startDesktopCloudSync } from '../src/cloud-scheduler.mjs';
+import { renameReplacing } from '../src/core/files.ts';
 
 /** One local service and one coalesced sync worker, using only protected host configuration. */
 export async function startCloudHost({ profile, port = 8788, onChange = () => {} }) {
@@ -21,15 +22,26 @@ export async function startCloudHost({ profile, port = 8788, onChange = () => {}
   if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 4096) throw new Error('Invalid protected local token file.');
   const token = (await fs.readFile(tokenFile, 'utf8')).trim();
   if (token.length < 32 || /\s/u.test(token)) throw new Error('Invalid protected local token.');
-  const service = await startHiveMind({ stateDirectory, token, port, cloudSyncEnabled: true });
   let manager, unsubscribe;
+  const service = await startHiveMind({ stateDirectory, token, port, cloudSyncEnabled: true, cloudControl: {
+    status: () => manager?.status() ?? { state: 'starting' },
+    flush: async () => { if (!manager) throw new Error('Cloud coordinator is starting.'); return manager.flush(); },
+  } });
   try {
     manager = startDesktopCloudSync({ settings, userData: profile, origin: service.origin, tokenFile, onChange });
     unsubscribe = subscribeHiveChanges(path.join(stateDirectory, 'hive-mind.json'), () => manager.changed());
+    const connectionFile = path.join(profile, 'connector-connection.json');
+    const previous = await fs.lstat(connectionFile).catch(error => { if (error.code !== 'ENOENT') throw error; return null; });
+    if (previous && (!previous.isFile() || previous.isSymbolicLink())) throw new Error('Invalid private connector descriptor.');
+    const staged = path.join(profile, `.connector-${randomBytes(12).toString('hex')}.tmp`);
+    try {
+      await fs.writeFile(staged, JSON.stringify({ origin: service.origin, mcp: service.origin + '/mcp', token }), { flag: 'wx', mode: 0o600 });
+      await renameReplacing(staged, connectionFile);
+    } finally { await fs.rm(staged, { force: true }); }
     let closing;
-    return { origin: service.origin, status: () => manager.status(),
+    return { origin: service.origin, connectionFile, status: () => manager.status(), flush: () => manager.flush(),
       close: () => closing ??= (async () => { unsubscribe?.(); await manager.stop(); await service.close(); })() };
-  } catch (error) { await manager?.stop(); await service.close(); throw error; }
+  } catch (error) { unsubscribe?.(); await manager?.stop(); await service.close(); throw error; }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
