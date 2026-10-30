@@ -116,7 +116,9 @@ test('host-started connector can reopen an existing opted-in profile after a res
   const code = await new Promise((resolve, reject) => { child.on('error', reject); child.on('close', resolve); }); clearTimeout(timer);
   assert.equal(code, 0, Buffer.concat(stderr).toString());
   const lines = Buffer.concat(stdout).toString().trim().split('\n');
-  assert.equal(lines.length, 1); assert.equal(JSON.parse(lines[0]).result.serverInfo.name, 'Hive Mind Connector');
+  assert.equal(lines.length, 1);
+  assert.equal(JSON.parse(lines[0]).result.serverInfo.name, 'Hive Mind Connector');
+  assert.equal(JSON.parse(lines[0]).result.serverInfo.version, '0.6.0');
 });
 test('flush drains changes queued during an older worker pass before reporting synchronized', async () => {
   let resolveFirst, entered, count = 0;

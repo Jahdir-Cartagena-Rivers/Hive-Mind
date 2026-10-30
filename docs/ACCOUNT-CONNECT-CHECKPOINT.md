@@ -23,6 +23,28 @@ installed-runtime changes.
 Next: native
 registration and real write receipts wait for authorized remote interaction.
 
+## Live native connector qualification — 2026-10-30
+
+Authorized two-prompt Grok Bot test completed after reading Auro's prior
+messages. The existing remote Hive profile was upgraded in place to source
+commit `df1cfdb`; its pre-upgrade profile backup remains on that host. Auro
+registered `hive-mind` / `user-hive-mind` as a native stdio connector with 11
+tools and write access. The connector saved a synthetic project canary as A,
+recalled it, corrected it to B and recalled exactly B. Both write receipts said
+`localCommitted:true`, `driveConfirmed:true`, `state:synced`; the independent
+read-only follow-up returned `enabled:true`, `state:synced`. No applicant fact,
+application task or secret was changed or exposed. The synthetic canary remains
+as a future deployment read check.
+
+Live evidence is Auro's bounded task receipt at
+`/workspace/auto-apply/runtime/t133/receipt.json` on its remote computer. That
+receipt, host PID and remote paths are operator evidence; direct host inspection
+was not available here. The live connector advertised protocol version 0.3.0
+because `src/mcp.mjs` retained an old static label while package/source are
+0.6.0. The source correction below updates it to 0.6.0 and adds a focused
+assertion. It is not deployed to the running remote host yet; do not restart it
+again solely for this metadata correction without a new bounded authorization.
+
 ## Native connector correction and current next action
 
 The user explicitly rejects the instructions-only ZIP as the requested outcome.

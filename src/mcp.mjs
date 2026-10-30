@@ -161,7 +161,7 @@ export async function handleMcp(message, { call, canWrite }) {
       return reply({
         protocolVersion: PROTOCOL,
         capabilities: { tools: {} },
-        serverInfo: { name: "Hive Mind", version: "0.3.0" },
+        serverInfo: { name: "Hive Mind", version: "0.6.0" },
       });
     case "ping":
       return reply({});
