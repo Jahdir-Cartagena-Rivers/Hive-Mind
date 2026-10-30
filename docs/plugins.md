@@ -77,6 +77,11 @@ write retry occurs. Errors do not echo connection credentials or HTTP bodies.
 
 ## Another computer or cloud AI
 
+Current setup direction: use the existing Grokbot/Auro or ChatGPT Dot computers
+instead of adding potentially billable hosting. Each host still needs verified
+runtime, account and protected key access. Session-limited hosts may execute
+pull/action/push on demand; a continuously running service is not assumed.
+
 An AI with its own computer can run the same plugin beside its own Hive Mind host.
 First join that host to the existing encrypted store using the protected
 [Drive sync setup](drive-file-sync.md). Keep encryption keys and credentials
@@ -84,8 +89,9 @@ outside the plugin and outside Drive. A desktop export is bound to that desktop'
 connection-file path; re-export without that path or configure the new host's
 private connection file. Exporting a plugin does not join a host or sync memory.
 
-Cloud-only hosts that cannot execute stdio need product-managed execution behind
-an authenticated HTTPS MCP connection. The intended setup is connect Google
+Hosts that cannot run the connector need another supported execution integration.
+A hosted HTTPS MCP service is an alternative, but separately billable hosting
+is excluded from the current personal setup. The intended setup is connect Google
 account; users should not need their own domain or hosting account. See the
 [account-connect implementation plan](ACCOUNT-CONNECT-PLAN.md).
 This release does not expose a public listener, implement public

@@ -1,5 +1,22 @@
 # Account-connect onboarding — 2026-10-28
 
+## Current execution decision — 2026-10-29
+
+The user excludes additional potentially billable hosting. Do not activate Google
+Cloud billing or deploy Cloud Run/separately paid infrastructure. Run Hive Mind
+on the existing Grokbot/Auro and ChatGPT Dot computers where qualified; Drive
+remains shared canonical storage and Composio remains the account/tool layer.
+The account-connect/easier-access objective continues. The hosted design below
+is an earlier alternative, not the current deployment target.
+
+Qualify each remote host independently: code execution and dependencies, secure
+key access, exact account/store binding, on-demand pull/action/push, correction
+and Forget propagation, and what survives between sessions. A remote computer
+is not proof of a continuously available server. Prefer on-demand execution when
+the host cannot retain a daemon. Do not put encryption keys in Drive or chat to
+work around missing protected storage. Existing AI/Composio usage limits remain;
+no additional server bill does not mean unlimited/free agent usage.
+
 User contract: install Hive Mind, connect the intended Google account, choose the
 existing brain or create a new one, and connect an AI. Users do not supply a
 domain or manage a server. Drive remains canonical storage. The user is open to
@@ -16,7 +33,7 @@ service can do this without the user's PC being online. A Google Cloud project
 can own OAuth registration and execution deployment; a custom user domain is not
 an onboarding prerequisite. This is a target design, not a deployed service.
 
-## Proposed first hosted implementation
+## Earlier hosted alternative — not selected
 
 Retain Composio as the connected-account layer. Check its supported custom OAuth
 app/account-link flow before selecting direct Google OAuth code. Do not build a

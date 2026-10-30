@@ -1,5 +1,11 @@
 # Hive Mind plugin milestone — 2026-10-28
 
+Current follow-up scope2026-10-29: the user excludes extra potentially paid
+hosting. Use the existing Grokbot/Auro and ChatGPT Dot computers with shared
+Drive; independently qualify protected key access and on-demand operation.
+Cloud Run and billing activation are not required next steps. The native plugin
+release remains unchanged. See the current decision in ACCOUNT-CONNECT-PLAN.md.
+
 Objective: turn the existing standalone Hive Mind core into an installable,
 token-free AI connector with guided setup and two-client continuity qualification.
 User approved implementation in the Auto Apply conversation on 2026-10-28.
