@@ -1,5 +1,11 @@
 # Account-connect implementation checkpoint — 2026-10-29
 
+Current user decision: additional potentially paid hosting is off the table.
+Do not activate billing or deploy Cloud Run. Target existing Grokbot/Auro and
+ChatGPT Dot computers, preserving shared Drive and Composio. Account-link code
+remains staged; qualify host-run/on-demand use rather than requiring a public
+gateway. The earlier billing request below is withdrawn for this setup.
+
 User explicitly requests implementing and running the cloud Google-account
 connection for easier plugin access. This continues ACCOUNT-CONNECT-PLAN.md;
 native-only packaging is not the complete requested outcome. Preserve existing
@@ -52,11 +58,12 @@ Cloud Run dependency. Billing is required for the proposed Cloud Run deployment,
 not Google sign-in, Drive sync or plugins generally. Do not treat adding billing
 as an unconditional user prerequisite. Evaluate the existing remote-host or
 managed-runtime route before choosing additional infrastructure. The user has
-not categorically rejected paid hosting; do not infer that constraint.
+subsequently excluded additional potentially paid hosting explicitly; that later
+decision supersedes the prior conditional hosting evaluation.
 
-Next: compare available execution hosts, then implement the
-public authenticated gateway if needed, protected key provisioning and durable attempt/user
-bindings. Prove cross-user rejection and actual cloud-only host roundtrip before
+Next: qualify Grokbot/Auro and ChatGPT Dot execution, protected key access and
+on-demand operation, then complete host-side account/store bindings.
+Prove cross-user rejection and actual remote-host roundtrip before
 calling this up and running. Existing personal account need not reconnect.
 
 Sources consulted: https://docs.composio.dev/docs/configuring-sessions and

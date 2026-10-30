@@ -1,5 +1,11 @@
 # Account-connect onboarding — 2026-10-28
 
+Current user decision2026-10-29: exclude additional potentially paid hosting.
+No Cloud Run deployment or billing activation. Use the existing Grokbot/Auro and
+ChatGPT Dot computers with shared Drive and retained Composio. Verify runtime,
+protected keys and on-demand pull/action/push independently on each host; do not
+assume a persistent daemon. The hosted design below is a historical alternative.
+
 Implementation started2026-10-29 under explicit user instruction. See
 [ACCOUNT-CONNECT-CHECKPOINT.md](ACCOUNT-CONNECT-CHECKPOINT.md) for verified live
 account access, staged code and current deployment prerequisites.
