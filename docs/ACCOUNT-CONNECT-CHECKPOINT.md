@@ -46,8 +46,16 @@ Two native preview_click calls had no observed form transition; DOM inspection
 confirmed the form remained valid and enabled. A DOM button click then submitted
 successfully. No duplicate creation or project cleanup was attempted.
 
-Next: receive billing-account setup, then implement the
-public authenticated gateway, protected key provisioning and durable attempt/user
+Clarification2026-10-29: the user's comparison was Gyromi. Current MediaApp code
+performs Google OAuth and direct Drive sync on the device; that path has no
+Cloud Run dependency. Billing is required for the proposed Cloud Run deployment,
+not Google sign-in, Drive sync or plugins generally. Do not treat adding billing
+as an unconditional user prerequisite. Evaluate the existing remote-host or
+managed-runtime route before choosing additional infrastructure. The user has
+not categorically rejected paid hosting; do not infer that constraint.
+
+Next: compare available execution hosts, then implement the
+public authenticated gateway if needed, protected key provisioning and durable attempt/user
 bindings. Prove cross-user rejection and actual cloud-only host roundtrip before
 calling this up and running. Existing personal account need not reconnect.
 
