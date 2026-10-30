@@ -5,6 +5,9 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const ROOT_FILES = new Set([
+  'src/remote-plugin-package.mjs',
+  'plugin/skills/remote-continuity/SKILL.md',
+  'test/remote-plugin.test.mjs',
   'src/account-link.mjs',
   'test/account-link.test.mjs',
   'scripts/check-account-link.mjs',

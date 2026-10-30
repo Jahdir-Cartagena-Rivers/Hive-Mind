@@ -6,6 +6,19 @@ ChatGPT Dot computers, preserving shared Drive and Composio. Account-link code
 remains staged; qualify host-run/on-demand use rather than requiring a public
 gateway. The earlier billing request below is withdrawn for this setup.
 
+Latest clarification: preserve the user-reported working Drive-based setup and
+package it for reuse; no desktop app installation on Grokbot/Dot. Added remote
+instructions-only plugin export (--remote), reusing current host tools and
+approved helpers without a new MCP process or credentials. Existing native
+connector export remains separate.10 focused remote/native packaging checks
+pass. Exported six-file bundle in dist/Hive-Mind-Remote-0.6.0 and native Claude
+manifest validation passes (listing-icon warning only). The first CLI export
+failed because the ignored dist parent did not yet exist; creating that output
+parent resolved it. No existing output or host configuration was overwritten.
+This is a packaged skill, not new transport functionality. Actual loading into
+Grokbot/Dot and packaged recall/save parity have not been performed; do not claim
+remote activation or native plugin-loader support from local manifest validation.
+
 User explicitly requests implementing and running the cloud Google-account
 connection for easier plugin access. This continues ACCOUNT-CONNECT-PLAN.md;
 native-only packaging is not the complete requested outcome. Preserve existing
@@ -61,9 +74,9 @@ managed-runtime route before choosing additional infrastructure. The user has
 subsequently excluded additional potentially paid hosting explicitly; that later
 decision supersedes the prior conditional hosting evaluation.
 
-Next: qualify Grokbot/Auro and ChatGPT Dot execution, protected key access and
-on-demand operation, then complete host-side account/store bindings.
-Prove cross-user rejection and actual remote-host roundtrip before
+Next: load the remote skill through the existing supported instruction mechanism
+in Grokbot/Dot, retaining their configured account/store/helpers. Compare packaged
+recall/save/correction/Forget with the current working behavior before
 calling this up and running. Existing personal account need not reconnect.
 
 Sources consulted: https://docs.composio.dev/docs/configuring-sessions and
