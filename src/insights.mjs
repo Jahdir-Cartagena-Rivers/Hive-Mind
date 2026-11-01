@@ -11,5 +11,9 @@ export async function memoryInsights(file,{projects=[],limit=20}={}) {
  const contradictions=pairs.filter(p=>p.relation.data.relationship==='contradicts').map(p=>({...p,resolutions:pairs.filter(q=>q.relation.data.relationship==='resolved-by'&&q.from.id===p.relation.id).map(q=>q.to)}));
  const outcomes=pairs.filter(p=>p.relation.data.relationship==='outcome');
  const resurfaced=records.filter(r=>r.kind==='task'&&['open','active','blocked'].includes(r.data.status)).sort((a,b)=>a.updatedAt.localeCompare(b.updatedAt)).slice(0,limit);
- return {contradictions:contradictions.slice(0,limit),outcomes:outcomes.slice(0,limit),resurfaced,interpretation:'Explicit links and task states; contradictions and outcomes are not inferred.'};
+ const correctionSuggestions=records.filter(r=>r.kind==='preference'&&r.source.type==='user').flatMap(r=>{
+  const corrections=r.history.filter(h=>h.source?.type==='user' && typeof h.data.statement==='string' && h.data.statement!==r.data.statement);
+  return corrections.length>=2?[{id:r.id,statement:r.data.statement,scope:r.scope,project:r.project,correctionCount:corrections.length,source:r.source,label:'suggestion'}]:[];
+ }).slice(0,limit);
+ return {correctionSuggestions,contradictions:contradictions.slice(0,limit),outcomes:outcomes.slice(0,limit),resurfaced,interpretation:'Explicit links and task states; contradictions and outcomes are not inferred.'};
 }

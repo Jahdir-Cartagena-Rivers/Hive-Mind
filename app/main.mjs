@@ -35,6 +35,7 @@ if (SMOKE) {
 }
 // Only these service operations are reachable from the interface.
 const ROUTES = new Set([
+  "/v1/insights",
   "/v1/inference/recall",
   "/v1/status",
   "/v1/graph",
@@ -491,6 +492,12 @@ async function smoke() {
 
   }
   if (!report.error) {
+    report.insights = await window.webContents.executeJavaScript(`(async () => {
+      const button=[...document.querySelectorAll('#workspace-dialog button')].find(b=>b.textContent==='Show insights');
+      if(!button)throw Error('Insights control unavailable');button.click();
+      await new Promise((resolve,reject)=>{const start=Date.now();const poll=()=>document.querySelector('#workspace-dialog section pre')?.textContent.includes('correctionSuggestions')?resolve():Date.now()-start>5000?reject(Error('Insights view did not load')):setTimeout(poll,50);poll();});
+      return {loaded:true};
+    })()`);
     report.inference = await window.webContents.executeJavaScript(`(async () => {
       const reply = await window.hive.request('/v1/inference/recall', {query:'Synthetic knowledge UI evidence'});
       if(reply.status!==200 || reply.value.action!=='use-evidence' || !reply.value.references.length) throw Error('Typed inference references unavailable over desktop IPC');

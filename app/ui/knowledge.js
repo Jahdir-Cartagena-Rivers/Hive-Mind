@@ -57,6 +57,13 @@
     }
     if (result.truncated) output.append(document.createTextNode('Results limited. Refine the search.'));
   });
+  button('Show insights', async () => {
+    const project = document.querySelectorAll('#workspace-editor input')[1]?.value?.trim();
+    const result = await request('/v1/insights', {projects: project ? [project] : []});
+    output.replaceChildren();
+    const note=document.createElement('p');note.textContent='Insights use explicit links and user corrections. Choose a project in the editor to include its records.';output.append(note);
+    const detail=document.createElement('pre');detail.style.whiteSpace='pre-wrap';detail.textContent=JSON.stringify(result,null,2);output.append(detail);
+  });
   button('Import notes / normalized chats', async () => {
     const picker = document.createElement('input'); picker.type = 'file'; picker.accept = '.json';
     picker.onchange = async () => {

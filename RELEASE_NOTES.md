@@ -10,3 +10,7 @@ forgetting evidence removes dependent derived claims.
 Includes the general-memory null-project compatibility repair shipped in 0.6.2.
 This staging version is not a deployed Rust rewrite. Shared-profile rollout needs
 compatible readers on all relevant replicas before new record kinds are written.
+
+Adds scoped Insights for explicit contradictions, recorded resolutions and
+outcomes, older open tasks, and labeled suggestions from repeated user
+corrections. Suggestions do not modify preferences.

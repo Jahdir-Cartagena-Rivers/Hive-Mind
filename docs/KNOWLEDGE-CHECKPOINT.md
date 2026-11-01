@@ -156,3 +156,10 @@ explicit decision-outcome links, and older open tasks. It does not manufacture
 contradictions or infer user preferences. Source tests cover project isolation.
 No 0.7 deployment or remote upgrade is claimed. Remaining work includes desktop
 interaction, explicit preference-learning proposals and live shared qualification.
+
+Continuation: added desktop Insights view and labeled suggestions from repeated
+user-authored corrections. Suggestions never mutate preferences; explicit links
+show contradictions/resolutions and outcomes. Focused tests and isolated
+Electron view check passed (%TEMP%/hive-continuity-ui-b0SCcG). Full combined
+suite: 175 Node and 68 core tests passed. Remote Auro access not found in current
+app/connector inventory; no remote upgrade or shared-schema rollout verified.

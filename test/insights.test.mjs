@@ -16,3 +16,12 @@ test('insights show explicit conflict and outcome with project isolation',async 
  assert.equal((await memoryInsights(file,{projects:['B']})).contradictions.length,0);
  await assert.rejects(memoryInsights(file,{projects:'A'}),/Invalid/);
 });
+
+test('repeated user corrections are suggestions and never alter preferences',async t=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'hive-corrections-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const file=path.join(dir,'store.json');
+ const base={kind:'preference',scope:'project',project:'A',title:'Palette',source:{type:'user',threadId:'user-chat',provider:'test'}};
+ let record=await saveBrainRecord(file,{...base,data:{statement:'blue',polarity:'like',context:'design'}});
+ record=await saveBrainRecord(file,{...base,id:record.id,revision:record.revision,data:{statement:'green',polarity:'like',context:'design'}});
+ record=await saveBrainRecord(file,{...base,id:record.id,revision:record.revision,data:{statement:'dark green',polarity:'like',context:'design'}});
+ const result=await memoryInsights(file,{projects:['A']});assert.equal(result.correctionSuggestions[0].statement,'dark green');assert.equal(result.correctionSuggestions[0].label,'suggestion');assert.equal((await memoryInsights(file,{projects:['B']})).correctionSuggestions.length,0);
+});
