@@ -129,3 +129,20 @@ Final delivery of inference increment:
 - No Jev API, Laya model, local trained decision reranker or Rust rewrite was
   activated. Research/evaluation remains separate from the implemented ONNX
   acceleration and deterministic typed reference controller.
+
+
+## Reader upgrade reconciliation ? 2026-11-01
+
+Objective: finish 0.7 deployment before Neomas-inspired work. Merged the existing
+Auro native connector source and sync coordinator from feat/account-connect-20261029
+into the 0.7 rework. Preserved 0.7 knowledge/inference routes and cloud flush/status.
+The remote connector test now checks the current package version rather than a
+hard-coded older version. Focused 31 tests passed; full 173 Node and 68 core tests
+passed, including offline rejection, encrypted transfer and headless restart.
+
+Still required before live deployment: build and qualify the combined package,
+upgrade and verify the actual existing remote Auro reader/profile, then verify
+shared sync across old/new clients without losing state. No Grok/Auro host was
+contacted, no profile was migrated, and no 0.7 release/installation is claimed.
+Neomas work follows the requested existing-work deployment phase. Local staged
+merge is preserved in this branch, with existing Drive/Composio unchanged.

@@ -16,6 +16,22 @@ is not proof of a continuously available server. Prefer on-demand execution when
 the host cannot retain a daemon. Do not put encryption keys in Drive or chat to
 work around missing protected storage. Existing AI/Composio usage limits remain;
 no additional server bill does not mean unlimited/free agent usage.
+Current user decision2026-10-29: exclude additional potentially paid hosting.
+No Cloud Run deployment or billing activation. Use the existing Grokbot/Auro and
+ChatGPT Dot computers with shared Drive and retained Composio. Verify runtime,
+protected keys and on-demand pull/action/push independently on each host; do not
+assume a persistent daemon. The hosted design below is a historical alternative.
+
+User clarification: the existing improvised Drive-based setup works well and is
+the baseline. Package and simplify its current tools/helpers and instructions;
+do not require desktop installation, a new service or repeat feasibility setup.
+Remote instructions export: `node scripts/export-plugin.mjs --remote --output
+<new-folder>`. This package supplies guidance for existing connections; it does
+not supply or replace the host's account tools or cryptographic consumer.
+
+Implementation started2026-10-29 under explicit user instruction. See
+[ACCOUNT-CONNECT-CHECKPOINT.md](ACCOUNT-CONNECT-CHECKPOINT.md) for verified live
+account access, staged code and current deployment prerequisites.
 
 User contract: install Hive Mind, connect the intended Google account, choose the
 existing brain or create a new one, and connect an AI. Users do not supply a
