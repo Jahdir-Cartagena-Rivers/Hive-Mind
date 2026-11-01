@@ -32,6 +32,10 @@ Evidence-backed decision histories, immutable source entries, versioned AI
 interpretations and previewable normalized imports are described in the
 [knowledge guide](docs/knowledge.md).
 
+Local ONNX inference now supports resident vector snapshots, coalesced repeated
+queries and bounded typed memory references. See the [inference guide](docs/inference.md)
+for measured latency, the MCP tool and replica compatibility preflight.
+
 ## Start a separate environment
 
 Requires Node.js 24.13 or newer. Install with `npm ci` (install scripts fetch the Electron and ONNX runtime binaries). Generate

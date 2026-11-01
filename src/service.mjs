@@ -1,3 +1,6 @@
+import { semanticRuntimeStatus } from "./core/semantic.ts";
+import { replicaCompatibility } from "./compatibility.mjs";
+import { inferMemoryReferences } from "./inference.mjs";
 import { importKnowledge, knowledgeView } from "./knowledge.mjs";
 import http from "node:http";
 import fs from "node:fs/promises";
@@ -49,6 +52,8 @@ import { liveCloudSnapshot, applyLiveCloudArchive } from './cloud-live.mjs';
 
 const MAX_BODY = 64 * 1024;
 const readOperations = new Set([
+  "/v1/compatibility",
+  "/v1/inference/recall",
   "/v1/knowledge/view",
   "/v1/search",
   "/v1/graph",
@@ -331,6 +336,8 @@ data: ${JSON.stringify({ presence: presence.list() })}
       if (request.method === "GET" && url.pathname === "/v1/status")
         return respond(response, 200, {
           ...(await runtime.snapshot()),
+          compatibility: await replicaCompatibility(file),
+          inference: semanticRuntimeStatus(file),
           continuity: {
             sequence: (await readHiveMind(file)).continuity?.sequence ?? 0,
             records: (await readHiveMind(file)).continuity?.records.length ?? 0,
@@ -347,6 +354,7 @@ data: ${JSON.stringify({ presence: presence.list() })}
                 return brainContext(file, args, (projects) =>
                   presence.list({ projects, excludeChatId: args.threadId }),
                 );
+              case "hive_mind_infer_references": return inferMemoryReferences(file, args);
               case "hive_mind_presence":
                 return presenceOperation(args);
               case "hive_mind_record": {
@@ -437,6 +445,8 @@ data: ${JSON.stringify({ presence: presence.list() })}
         return respond(response, 200, reply);
       }
       const operations = new Set([
+        "/v1/compatibility",
+        "/v1/inference/recall",
         "/v1/knowledge/view", "/v1/knowledge/import",
         ...(cloudSyncEnabled ? ['/v1/cloud/snapshot', '/v1/cloud/apply'] : []),
         "/v1/graph",
@@ -478,6 +488,8 @@ data: ${JSON.stringify({ presence: presence.list() })}
       );
       let result;
       switch (url.pathname) {
+        case "/v1/compatibility": result = await replicaCompatibility(file, body); break;
+        case "/v1/inference/recall": result = await inferMemoryReferences(file, body); break;
         case "/v1/knowledge/view": result = await knowledgeView(file, body); break;
         case "/v1/knowledge/import": result = await importKnowledge(file, body); break;
         case '/v1/cloud/snapshot':

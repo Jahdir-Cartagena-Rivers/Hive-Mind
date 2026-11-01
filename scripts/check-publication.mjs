@@ -5,6 +5,12 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const ROOT_FILES = new Set([
+  'docs/inference-performance.md',
+  'src/inference.mjs',
+  'src/compatibility.mjs',
+  'scripts/benchmark-inference.mjs',
+  'test/inference.test.mjs',
+  'docs/inference.md',
   // Reviewed account-connect paths already present on reachable branches.
   'docs/ACCOUNT-CONNECT-CHECKPOINT.md',
   'docs/REMOTE-CONNECTOR.md',

@@ -6,6 +6,12 @@ const scope = { type: "string", enum: ["general", "project"] };
 
 export const tools = [
   {
+    name: "hive_mind_infer_references",
+    description: "Fast local reference selection using ONNX embeddings, keywords and evidence links. Returns bounded current IDs and source metadata, not generated answers or truth probabilities. General memories plus explicitly requested projects only. Use record/list or recall to read the selected evidence. Empty results request broader search. Does not contact hosted decision models or alter memory.",
+    inputSchema: object({ query: text, projects: { type: "array", items: text }, limit: { type: "integer", minimum: 1, maximum: 32 }, maxChars: { type: "integer", minimum: 500, maximum: 24000 } }, ["query"]),
+    write: false,
+  },
+  {
     name: "hive_mind_file",
     description:
       "Explicitly retain an opaque model, document or source file (base64, filename, title, scope/project) or read retained bytes as an embedded MCP resource. Files are stored without executing them. Link the resulting asset ID to an artifact revision.",
@@ -161,7 +167,7 @@ export async function handleMcp(message, { call, canWrite }) {
       return reply({
         protocolVersion: PROTOCOL,
         capabilities: { tools: {} },
-        serverInfo: { name: "Hive Mind", version: "0.3.0" },
+        serverInfo: { name: "Hive Mind", version: "0.7.0" },
       });
     case "ping":
       return reply({});

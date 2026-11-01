@@ -73,3 +73,41 @@ origin/feat/knowledge-rework-20261101. Merge reconciliation retained staging
 0.7.0 metadata and the null-general-project repair; 21 service/plugin tests passed.
 Remaining work is the native prototype/language comparison and mixed-reader
 shared-schema rollout; neither is claimed complete by the source rework.
+
+
+## Local inference increment ? 2026-11-01
+
+User requested continuing remaining rework and investigating Jev-like inference
+for fast references. Reviewed TypeSafe's official Jev typed-decision docs,
+Jev-Mem paper, Laya and laya.cpp primary sources. Jev-style learned relevance/
+query routing remains an evaluation candidate, not an installed model. Existing
+Hindsight config/data and Drive/Composio stay intact; no paid provider or new
+production dependency was introduced.
+
+Implemented bounded resident vector snapshots, decoded-vector reuse, coalesced
+query embeddings with hashed keys, TTL/bounds, failure eviction and fresh candidate
+revision checks. Added typed local reference selection (no generated text or
+calibrated probabilities), read-only MCP/HTTP access, exact-ID route, evidence-link
+expansion, current decision filtering and scope enforcement. Added read-only
+replica capability preflight and upgraded-reader archive round-trip checks.
+
+Real ONNX benchmark using copied model assets and synthetic records:
+%TEMP%/hive-inference-benchmark-hgzxFP/result.json. 120 records, six repeated
+queries, 30 samples/mode: p50 5.263 ms uncached vs 0.406 ms cached; p95 6.164 ms
+vs 0.511 ms; identical rankings. Warm retrieval core only, not chat/network/cold
+startup. No Rust-language advantage is established by this experiment: the model
+already runs in native ONNX Runtime while TypeScript coordinates retrieval.
+
+The original default npm test command omitted the new knowledge/inference test
+files (they had separate focused runs). Both are now included in the default
+suite and release validation. Final full source run: 161 Node + 68 core tests pass.
+Desktop source smoke passed at %TEMP%/hive-continuity-ui-U6QTvT including typed
+inference IPC. The compatible performance-only 0.6.3 release is prepared separately
+from 0.7 new record kinds; its package smoke passed at
+%TEMP%/hive-continuity-ui-DkyUbv. A separate Electron-as-Node benchmark attempt
+produced no output and is not counted as packaged-model inference evidence.
+
+Remaining: live rollout of 0.7 new kinds requires updated shared readers; the
+preflight now identifies incompatibility without dropping/relabeling records.
+Auro has not been contacted or updated. A learned local decision-model reranker
+still needs representative relevance and contention measurements before adoption.

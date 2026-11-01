@@ -35,6 +35,7 @@ if (SMOKE) {
 }
 // Only these service operations are reachable from the interface.
 const ROUTES = new Set([
+  "/v1/inference/recall",
   "/v1/status",
   "/v1/graph",
   "/v1/memory",
@@ -490,6 +491,11 @@ async function smoke() {
 
   }
   if (!report.error) {
+    report.inference = await window.webContents.executeJavaScript(`(async () => {
+      const reply = await window.hive.request('/v1/inference/recall', {query:'Synthetic knowledge UI evidence'});
+      if(reply.status!==200 || reply.value.action!=='use-evidence' || !reply.value.references.length) throw Error('Typed inference references unavailable over desktop IPC');
+      return {references:true,localOnly:reply.value.inference.localOnly};
+    })()`);
     report.visual = await window.webContents.executeJavaScript(`(async () => {
       document.getElementById('workspace-close').click();
       const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));

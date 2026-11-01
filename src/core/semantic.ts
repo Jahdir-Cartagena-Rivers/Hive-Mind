@@ -1,5 +1,6 @@
 // @effect-diagnostics nodeBuiltinImport:off - semantic vectors are an environment-owned sidecar of the Hive Mind store.
 import * as NodePath from "node:path";
+import { createHash } from "node:crypto";
 import * as Schema from "effect/Schema";
 import { embedTexts } from "./embedder.ts";
 import * as NodeFSP from "node:fs/promises";
@@ -39,14 +40,82 @@ const decode = (text: string) => {
   return new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4);
 };
 
-async function readVectors(file: string) {
-  const text = await readOptional(paths(file).vectors, 32_000_000);
-  const stored = text === null ? undefined : decodeVectors(JSON.parse(text));
-  // Vectors from a different model are meaningless; start over.
+type VectorSnapshot = {
+  model: string;
+  digests: Record<string, string>;
+  vectors: Record<string, string>;
+  decoded: Map<string, Float32Array>;
+};
+const vectorCache = new Map<string, { stamp: string; value: Promise<VectorSnapshot> }>();
+const queryCaches = new Map<string, Map<string, { at: number; value: Promise<Float32Array | undefined> }>>();
+const inferenceCounters = new Map<string, { hits: number; misses: number }>();
+const cacheDisabled = () => process.env["HIVE_MIND_INFERENCE_CACHE"] === "off";
+const MAX_INDEXES = 8;
+const MAX_QUERIES = 64;
+const QUERY_TTL_MS = 60_000;
+const emptyVectors = (): VectorSnapshot => ({ model: MODEL, digests: {}, vectors: {}, decoded: new Map() });
+
+async function readVectors(file: string, mutable = false) {
+  const location = paths(file).vectors;
+  const stat = await NodeFSP.stat(location, { bigint: true }).catch(error => {
+    if (error.code === "ENOENT") return undefined;
+    throw error;
+  });
+  if (!stat) { vectorCache.delete(location); return emptyVectors(); }
+  const stamp = `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`;
+  if (cacheDisabled()) vectorCache.delete(location);
+  let cached = vectorCache.get(location);
+  if (cached?.stamp !== stamp) {
+    const value = (async () => {
+      const text = await readOptional(location, 32_000_000);
+      const stored = text === null ? undefined : decodeVectors(JSON.parse(text));
+      return stored?.model === MODEL ? { ...stored, decoded: new Map<string, Float32Array>() } : emptyVectors();
+    })();
+    cached = { stamp, value };
+    vectorCache.set(location, cached);
+    value.catch(() => { if (vectorCache.get(location)?.value === value) vectorCache.delete(location); });
+    while (vectorCache.size > MAX_INDEXES) vectorCache.delete(vectorCache.keys().next().value!);
+  }
+  const stored = await cached!.value;
+  // Index synchronization mutates its copy, never another in-flight reader's snapshot.
+  return mutable ? { ...stored, digests: { ...stored.digests }, vectors: { ...stored.vectors } } : stored;
+}
+
+async function queryEmbedding(file: string, query: string) {
+  const modelDir = paths(file).models;
+  if (cacheDisabled()) return (await embedTexts(modelDir, [QUERY_PREFIX + query]))[0];
+  let cache = queryCaches.get(modelDir);
+  if (!cache) {
+    cache = new Map(); queryCaches.set(modelDir, cache);
+    inferenceCounters.set(modelDir, { hits: 0, misses: 0 });
+    while (queryCaches.size > MAX_INDEXES) {
+      const oldest = queryCaches.keys().next().value!;
+      queryCaches.delete(oldest); inferenceCounters.delete(oldest);
+    }
+  }
+  const queryKey = createHash("sha256").update(QUERY_PREFIX + query).digest("hex");
+  const now = Date.now();
+  for (const [key, entry] of cache) if (now - entry.at >= QUERY_TTL_MS) cache.delete(key);
+  const existing = cache.get(queryKey);
+  const counters = inferenceCounters.get(modelDir)!;
+  if (existing) { counters.hits++; return existing.value; }
+  counters.misses++;
+  const value = embedTexts(modelDir, [QUERY_PREFIX + query]).then(vectors => vectors[0]);
+  cache.set(queryKey, { at: now, value });
+  while (cache.size > MAX_QUERIES) cache.delete(cache.keys().next().value!);
+  value.catch(() => { if (cache!.get(queryKey)?.value === value) cache!.delete(queryKey); });
+  return value;
+}
+
+/** No queries, memory text, vectors or private paths are exposed by telemetry. */
+export function semanticRuntimeStatus(file: string) {
+  const modelDir = paths(file).models;
   return {
-    model: MODEL,
-    digests: { ...(stored?.model === MODEL ? stored.digests : {}) },
-    vectors: { ...(stored?.model === MODEL ? stored.vectors : {}) },
+    backend: "onnxruntime", model: MODEL, localOnly: true, enabled: !disabled(),
+    residentIndex: vectorCache.has(paths(file).vectors),
+    queryCacheEntries: queryCaches.get(modelDir)?.size ?? 0,
+    queryCacheHits: inferenceCounters.get(modelDir)?.hits ?? 0,
+    queryInferences: inferenceCounters.get(modelDir)?.misses ?? 0,
   };
 }
 
@@ -63,7 +132,7 @@ export async function pendingHiveVectors(file: string, memories: ReadonlyArray<H
 /** Embeds new or changed memories and drops forgotten ones. Costs milliseconds per memory, no LLM. */
 export async function syncHiveVectors(file: string, memories: ReadonlyArray<HiveMemory>) {
   if (disabled()) return { embedded: 0 };
-  const stored = await readVectors(file);
+  const stored = await readVectors(file, true);
   const ids = new Set(memories.map((memory) => memory.id));
   let changed = false;
   for (const id of Object.keys(stored.digests)) {
@@ -84,35 +153,46 @@ export async function syncHiveVectors(file: string, memories: ReadonlyArray<Hive
     });
     changed = true;
   }
-  if (changed) await writeAtomic(paths(file).vectors, JSON.stringify(stored));
+  if (changed) {
+    await writeAtomic(paths(file).vectors, JSON.stringify({ model: stored.model, digests: stored.digests, vectors: stored.vectors }));
+    vectorCache.delete(paths(file).vectors);
+  }
   return { embedded: pending.length };
 }
 
 /** Memories ranked by meaning, or undefined before the first index. Stale vectors are skipped so an old revision never ranks. */
-export async function semanticRecall(
+export async function semanticRank(
   file: string,
   query: string,
   candidates: ReadonlyArray<HiveMemory>,
   limit = 12,
 ) {
-  const stored = await readVectors(file);
   if (disabled()) return undefined;
+  const stored = await readVectors(file);
   // Nothing indexed yet: don't load the model just to rank an empty set.
   if (Object.keys(stored.vectors).length === 0) return undefined;
-  const [queryVector] = await embedTexts(paths(file).models, [QUERY_PREFIX + query]);
+  const queryVector = await queryEmbedding(file, query);
   if (!queryVector) return [];
   return candidates
     .flatMap((memory) => {
       const encoded = stored.vectors[memory.id];
       if (!encoded || stored.digests[memory.id] !== hiveMemoryDigest(memory)) return [];
-      const vector = decode(encoded);
+      let vector = stored.decoded.get(memory.id);
+      if (!vector) {
+        vector = decode(encoded);
+        if (vector.length !== 384 || !vector.every(Number.isFinite)) return [];
+        stored.decoded.set(memory.id, vector);
+      }
       let score = 0;
       for (let i = 0; i < vector.length; i++) score += vector[i]! * queryVector[i]!;
       return score >= MIN_SIMILARITY ? [{ memory, score }] : [];
     })
     .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map(({ memory }) => memory);
+    .slice(0, limit);
+}
+
+export async function semanticRecall(file: string, query: string, candidates: ReadonlyArray<HiveMemory>, limit = 12) {
+  return (await semanticRank(file, query, candidates, limit))?.map(hit => hit.memory);
 }
 
 const neighborCache = new Map<string, { stamp: string; links: Map<string, string[]> }>();

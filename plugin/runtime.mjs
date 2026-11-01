@@ -7,7 +7,7 @@ import { once } from 'node:events';
 
 const MAX_BYTES = 36 * 1024 * 1024;
 const scopedTools = new Set(['hive_mind_recall', 'hive_mind_remember', 'hive_mind_forget']);
-const safeRead = new Set(['hive_mind_recall', 'hive_mind_status', 'hive_mind_working_context']);
+const safeRead = new Set(['hive_mind_infer_references', 'hive_mind_recall', 'hive_mind_status', 'hive_mind_working_context']);
 const mixedRead = { hive_mind_record: 'list', hive_mind_presence: 'list', hive_mind_image: 'read', hive_mind_file: 'read' };
 
 export function validateOptions(input) {
