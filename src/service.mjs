@@ -1,3 +1,4 @@
+import { memoryInsights } from "./insights.mjs";
 import { semanticRuntimeStatus } from "./core/semantic.ts";
 import { replicaCompatibility } from "./compatibility.mjs";
 import { inferMemoryReferences } from "./inference.mjs";
@@ -52,6 +53,7 @@ import { liveCloudSnapshot, applyLiveCloudArchive } from './cloud-live.mjs';
 
 const MAX_BODY = 64 * 1024;
 const readOperations = new Set([
+  "/v1/insights",
   "/v1/compatibility",
   "/v1/inference/recall",
   "/v1/knowledge/view",
@@ -357,6 +359,7 @@ data: ${JSON.stringify({ presence: presence.list() })}
                 return brainContext(file, args, (projects) =>
                   presence.list({ projects, excludeChatId: args.threadId }),
                 );
+              case "hive_mind_insights": return memoryInsights(file, args);
               case "hive_mind_infer_references": return inferMemoryReferences(file, args);
               case "hive_mind_presence":
                 return presenceOperation(args);
@@ -448,6 +451,7 @@ data: ${JSON.stringify({ presence: presence.list() })}
         return respond(response, 200, reply);
       }
       const operations = new Set([
+        "/v1/insights",
         "/v1/compatibility",
         "/v1/inference/recall",
         "/v1/knowledge/view", "/v1/knowledge/import",
@@ -492,6 +496,7 @@ data: ${JSON.stringify({ presence: presence.list() })}
       );
       let result;
       switch (url.pathname) {
+        case "/v1/insights": result = await memoryInsights(file, body); break;
         case "/v1/compatibility": result = await replicaCompatibility(file, body); break;
         case "/v1/inference/recall": result = await inferMemoryReferences(file, body); break;
         case "/v1/knowledge/view": result = await knowledgeView(file, body); break;

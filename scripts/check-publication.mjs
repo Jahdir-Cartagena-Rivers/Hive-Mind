@@ -5,6 +5,8 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const ROOT_FILES = new Set([
+  'src/insights.mjs',
+  'test/insights.test.mjs',
   'docs/inference-performance.md',
   'src/inference.mjs',
   'src/compatibility.mjs',

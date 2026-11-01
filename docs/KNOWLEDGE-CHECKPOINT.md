@@ -146,3 +146,13 @@ shared sync across old/new clients without losing state. No Grok/Auro host was
 contacted, no profile was migrated, and no 0.7 release/installation is claimed.
 Neomas work follows the requested existing-work deployment phase. Local staged
 merge is preserved in this branch, with existing Drive/Composio unchanged.
+
+
+## Neomas work started ? 2026-11-01
+
+While preparing the 0.7 deployment, implemented a scoped, read-only insights API
+and MCP tool that surfaces explicit contradiction links and resolution history,
+explicit decision-outcome links, and older open tasks. It does not manufacture
+contradictions or infer user preferences. Source tests cover project isolation.
+No 0.7 deployment or remote upgrade is claimed. Remaining work includes desktop
+interaction, explicit preference-learning proposals and live shared qualification.
