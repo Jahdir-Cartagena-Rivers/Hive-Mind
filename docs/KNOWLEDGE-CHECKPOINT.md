@@ -111,3 +111,21 @@ Remaining: live rollout of 0.7 new kinds requires updated shared readers; the
 preflight now identifies incompatibility without dropping/relabeling records.
 Auro has not been contacted or updated. A learned local decision-model reranker
 still needs representative relevance and contention measurements before adoption.
+
+
+Final delivery of inference increment:
+- Compatible release 0.6.3 committed at 0d68d6d, pushed to main, published with
+  installer/plugin/integrity manifests, installed with exit 0. Its release and
+  source/publication CI passed (release run 41337961049).
+- Live read-only check on 889 memories: 11 repeated requests, one query inference,
+  ten cache hits; warm HTTP p50 49.06 ms / p95 62.24 ms, consistent IDs/revisions.
+  Live config uses local semantic retrieval; Hindsight configuration was untouched.
+  Normal J1 MCP recall returned ready after update. No semantic-core speedup claim
+  is substituted for these end-to-end local HTTP figures.
+- Full 0.7 source suite: 161 Node tests + 68 core tests passed. Source desktop smoke
+  includes typed-reference IPC. Post-merge inference/plugin checks: 12 passed.
+- Staged 0.7 branch merged compatible acceleration at e1b689e; its source and
+  publication CI passed (41338117142). No new schema was installed in live memory.
+- No Jev API, Laya model, local trained decision reranker or Rust rewrite was
+  activated. Research/evaluation remains separate from the implemented ONNX
+  acceleration and deterministic typed reference controller.
