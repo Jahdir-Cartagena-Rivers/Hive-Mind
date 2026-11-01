@@ -1,4 +1,4 @@
-# Hive Mind 0.6.1
+# Hive Mind 0.6.2
 
 Fix general-memory writes from J1 Code being rejected when project is null.
 General memories now accept an omitted or null project. Invalid project scopes,
@@ -8,3 +8,5 @@ Drive configuration, connector credentials and profile locations are unchanged.
 Validation includes recall after restart, neighboring project saves, malformed
 inputs and read-only rejection. This release excludes the unfinished knowledge
 rework.
+
+Publication checks now recognize the reviewed account-connect source paths.
