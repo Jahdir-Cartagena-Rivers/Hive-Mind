@@ -64,3 +64,12 @@ image/task/graph/plugin routes); Windows dist:dir passed. Publication scan passe
 160 tracked files and 70 reachable commits. Version parity: 9 plugin tests pass.
 The 0.6.2 release workflow and its source/publication CI both completed successfully.
 The 0.7.0 source is committed separately; it has not been installed into live state.
+
+Packaged 0.7.0 final smoke passed at %TEMP%/hive-continuity-ui-cWRAs6, including
+knowledge import IPC/table/provenance and existing task/image/graph/plugin paths.
+Rework source and publication CI passed for merge 0c5de0b (run 41333490197).
+Repair is on origin/main at 58e6b1a; rework is on
+origin/feat/knowledge-rework-20261101. Merge reconciliation retained staging
+0.7.0 metadata and the null-general-project repair; 21 service/plugin tests passed.
+Remaining work is the native prototype/language comparison and mixed-reader
+shared-schema rollout; neither is claimed complete by the source rework.
