@@ -7,6 +7,7 @@ import { readOptional, writeAtomic } from "./files.ts";
 import { forgetHindsight, hiveDocumentId, recallHindsight, retainHindsight } from "./hindsight.ts";
 import {
   pendingHiveVectors,
+  semanticRuntimeStatus,
   relatedHiveMemories,
   semanticRecall,
   syncHiveVectors,
@@ -153,6 +154,7 @@ export async function hiveMindStatus(file: string) {
   const ids = new Set(memories.map((memory) => memory.id));
   return {
     name: "Hive Mind",
+    inference: semanticRuntimeStatus(file),
     records: memories.length,
     skills: memories.filter((memory) => memory.kind === "skill").length,
     vault: config.vault ?? null,

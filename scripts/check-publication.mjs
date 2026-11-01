@@ -5,15 +5,12 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const ROOT_FILES = new Set([
-  'app/ui/knowledge.js',
-  'docs/knowledge.md',
-  'docs/KNOWLEDGE-CHECKPOINT.md',
-  'src/knowledge.mjs',
-  'src/knowledge-import.mjs',
-  'src/knowledge-capture.mjs',
-  'scripts/capture-knowledge.mjs',
-  'test/knowledge.test.mjs',
-
+  'docs/inference-performance.md',
+  'src/inference.mjs',
+  'src/compatibility.mjs',
+  'scripts/benchmark-inference.mjs',
+  'test/inference.test.mjs',
+  'docs/inference.md',
   // Reviewed account-connect paths already present on reachable branches.
   'docs/ACCOUNT-CONNECT-CHECKPOINT.md',
   'docs/REMOTE-CONNECTOR.md',
@@ -28,6 +25,15 @@ const ROOT_FILES = new Set([
   'test/remote-connector.test.mjs',
   'test/remote-plugin.test.mjs',
 
+  'src/knowledge.mjs',
+  'src/knowledge-import.mjs',
+  'src/knowledge-capture.mjs',
+  'scripts/capture-knowledge.mjs',
+  'scripts/evaluate-knowledge.mjs',
+  'app/ui/knowledge.js',
+  'test/knowledge.test.mjs',
+  'docs/knowledge.md',
+  'docs/KNOWLEDGE-CHECKPOINT.md',
   '.agents/plugins/marketplace.json',
   '.claude-plugin/marketplace.json',
   'plugin/runtime.mjs',

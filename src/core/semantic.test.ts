@@ -8,7 +8,7 @@ import { hivePaths } from "./config.ts";
 import { hiveNotePath } from "./vault.ts";
 import { mutateHiveStore, readHiveMind } from "./store.ts";
 import { newContinuity, continuityMemories, type BrainRecord } from "./continuity.ts";
-import { semanticRecall, continuityIndexFile } from "./semantic.ts";
+import { semanticRecall, continuityIndexFile, semanticRuntimeStatus } from "./semantic.ts";
 import {
   forgetHiveMind,
   hiveMindStatus,
@@ -181,4 +181,28 @@ describe("built-in semantic index", () => {
     await expect(NodeFSP.stat(legacy)).rejects.toThrow();
     expect(await text(a)).toContain(`hive_id: ${a.id}`);
   });
+});
+
+
+it("coalesces repeated query inference while honoring corrections, deletion, scope and disk replacement", async () => {
+  const file = await fixture();
+  const saved = await rememberHiveMind(file, memory("Transport choice", "An automobile"));
+  await syncHiveMind(file);
+  const candidates = (await readHiveMind(file)).memories;
+  const before = semanticRuntimeStatus(file);
+  const hits = await Promise.all(Array.from({length: 8}, () => semanticRecall(file, "car", candidates)));
+  expect(hits.every(result => result?.[0]?.id === saved.id)).toBe(true);
+  expect(semanticRuntimeStatus(file).queryInferences - before.queryInferences).toBe(1);
+  expect(semanticRuntimeStatus(file).queryCacheHits - before.queryCacheHits).toBe(7);
+  // Cache contains embeddings only, never a cached authorization/result set.
+  expect(await semanticRecall(file, "car", [])).toEqual([]);
+  await rememberHiveMind(file, memory("Transport choice", "night"));
+  expect(await semanticRecall(file, "car", (await readHiveMind(file)).memories)).toEqual([]);
+  await syncHiveMind(file);
+  expect(await semanticRecall(file, "car", (await readHiveMind(file)).memories)).toEqual([]);
+  await forgetHiveMind(file, saved.id);
+  expect(await semanticRecall(file, "car", (await readHiveMind(file)).memories)).toEqual([]);
+  // Replace the derived index externally while the previous snapshot is resident.
+  await NodeFSP.writeFile(NodePath.join(NodePath.dirname(file), "hive-mind.vectors.json"), JSON.stringify({model:"Xenova/bge-small-en-v1.5",digests:{},vectors:{}}));
+  expect(await semanticRecall(file, "car", candidates)).toBeUndefined();
 });

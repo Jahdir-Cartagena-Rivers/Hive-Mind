@@ -1,6 +1,6 @@
 {
   "name": "hive-mind",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Shared, inspectable memory and task continuity across AI agents.",
   "author": { "name": "Hive Mind" },
   "mcpServers": "./mcp.claude.json"
