@@ -81,7 +81,9 @@ const decodeRemember = (body) => {
     (typeof body.sourceThreadId !== "string" || !/^[\w:.-]{1,128}$/u.test(body.sourceThreadId))
   )
     throw new RequestError(400, "Invalid source thread identity.");
-  const input = decode(HiveMindMutation, { ...body, action: "remember" });
+  const normalized = { ...body, action: "remember" };
+  if (body.scope === "general" && body.project === null) delete normalized.project;
+  const input = decode(HiveMindMutation, normalized);
   if (input.scope === "project" && !input.project?.trim())
     throw new RequestError(
       400,
