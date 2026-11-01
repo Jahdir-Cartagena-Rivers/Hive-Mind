@@ -16,6 +16,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --test test/plugin.test.mjs test/updater.test.mjs test/service.test.mjs
+      - run: npm run check:publication
       - run: npm run dist -- --x64 --publish never
       - run: node scripts/update-manifest.mjs
       - name: Package standalone AI plugin

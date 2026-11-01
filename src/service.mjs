@@ -1,3 +1,4 @@
+import { importKnowledge, knowledgeView } from "./knowledge.mjs";
 import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -48,6 +49,7 @@ import { liveCloudSnapshot, applyLiveCloudArchive } from './cloud-live.mjs';
 
 const MAX_BODY = 64 * 1024;
 const readOperations = new Set([
+  "/v1/knowledge/view",
   "/v1/search",
   "/v1/graph",
   "/v1/memory",
@@ -81,7 +83,11 @@ const decodeRemember = (body) => {
     (typeof body.sourceThreadId !== "string" || !/^[\w:.-]{1,128}$/u.test(body.sourceThreadId))
   )
     throw new RequestError(400, "Invalid source thread identity.");
-  const input = decode(HiveMindMutation, { ...body, action: "remember" });
+  // J1's canonical general-memory shape uses null; the mutation wire schema
+  // uses an optional string. Normalize only this supported general case.
+  const normalized = { ...body, action: "remember" };
+  if (body.scope === "general" && body.project === null) delete normalized.project;
+  const input = decode(HiveMindMutation, normalized);
   if (input.scope === "project" && !input.project?.trim())
     throw new RequestError(
       400,
@@ -431,6 +437,7 @@ data: ${JSON.stringify({ presence: presence.list() })}
         return respond(response, 200, reply);
       }
       const operations = new Set([
+        "/v1/knowledge/view", "/v1/knowledge/import",
         ...(cloudSyncEnabled ? ['/v1/cloud/snapshot', '/v1/cloud/apply'] : []),
         "/v1/graph",
         "/v1/memory",
@@ -471,6 +478,8 @@ data: ${JSON.stringify({ presence: presence.list() })}
       );
       let result;
       switch (url.pathname) {
+        case "/v1/knowledge/view": result = await knowledgeView(file, body); break;
+        case "/v1/knowledge/import": result = await importKnowledge(file, body); break;
         case '/v1/cloud/snapshot':
           result = await liveCloudSnapshot(file);
           break;

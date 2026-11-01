@@ -310,3 +310,19 @@ test('status and fresh event subscriptions work after old change cursors expire'
   assert.equal(stale.status,409);
   assert.equal((await f.request('/v1/status',undefined,'invalid-token')).status,401);
 });
+
+
+test("J1 general null project is compatible while malformed project scopes reject", async t => {
+  const f = await fixture(t);
+  const general = {...fact, scope: "general", project: null, sourceThreadId: "j1-general-fixture"};
+  const saved = await f.request("/v1/remember", general);
+  assert.equal(saved.status, 200);
+  assert.equal(saved.value.memory.project, null);
+  assert.equal((await f.request("/v1/remember", {...fact, project: null})).status, 400);
+  assert.equal((await f.request("/v1/remember", {...general, project: 12})).status, 400);
+  assert.equal((await f.request("/v1/remember", general, f.readToken)).status, 403);
+  assert.equal((await f.request("/v1/remember", fact)).status, 200);
+  await f.restart();
+  const recalled = await f.request("/v1/search", {query: general.subject});
+  assert.ok(recalled.value.memories.some(m => m.id === saved.value.memory.id));
+});

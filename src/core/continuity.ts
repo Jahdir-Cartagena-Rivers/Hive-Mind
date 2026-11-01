@@ -3,6 +3,9 @@ import { createHash, randomUUID } from "node:crypto";
 import type { HiveMemory } from "./store.ts";
 
 export const brainKinds = [
+  "evidence",
+  "interpretation",
+  "decision",
   "task",
   "preference",
   "collection",
@@ -75,7 +78,7 @@ export const fingerprint = (value: unknown) =>
     .digest("hex");
 export const continuityMemories = (records: readonly BrainRecord[]): HiveMemory[] =>
   records
-    .filter((r) => r.kind !== "client" && r.kind !== "relation")
+    .filter((r) => r.kind !== "client" && r.kind !== "relation" && !(r.kind === "interpretation" && !r.data.active))
     .map((r) => ({
       id: r.id,
       scope: r.scope,
@@ -159,6 +162,16 @@ export function validBrainRecord(value: unknown): value is BrainRecord {
     return false;
   if (d.contextStreamId !== undefined && !string(d.contextStreamId, 64)) return false;
   switch (value.kind) {
+    case "evidence":
+      return string(d.text, 12000) && !!d.text && string(d.speaker, 80) &&
+        string(d.origin, 1000) && string(d.recordedAt, 40) && Number.isFinite(Date.parse(String(d.recordedAt)));
+    case "interpretation":
+      return string(d.summary) && strings(d.referenceIds) &&
+        string(d.model, 160) && !!d.model && string(d.schema, 160) && !!d.schema &&
+        string(d.runId, 160) && !!d.runId && typeof d.active === "boolean";
+    case "decision":
+      return string(d.statement) && ["proposed", "accepted", "superseded", "rejected"].includes(String(d.status)) &&
+        string(d.rationale) && strings(d.referenceIds);
     case "task":
       return (
         string(d.objective) &&

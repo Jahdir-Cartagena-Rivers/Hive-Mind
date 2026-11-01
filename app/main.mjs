@@ -45,6 +45,8 @@ const ROUTES = new Set([
   "/v1/configure",
   "/v1/sync",
   "/v1/import",
+  "/v1/knowledge/view",
+  "/v1/knowledge/import",
   "/v1/brain",
   "/v1/brain/save",
   "/v1/brain/forget",
@@ -471,6 +473,21 @@ async function smoke() {
       return { taskSaved: true, imageDecoded: images.some(image => image.naturalWidth > 0), dialogOpen: document.getElementById('workspace-dialog').open, referenceRows: document.querySelectorAll('#workspace-list button').length };
     })()`);
     if (!report.workspace.imageDecoded) report.error = "Retained image did not decode.";
+    report.knowledge = await window.webContents.executeJavaScript(`(async () => {
+      const imported = await window.hive.request('/v1/knowledge/import', {
+        scope:'general', source:{type:'import',threadId:'desktop-fixture',provider:'smoke'}, dryRun:false,
+        entries:[{text:'Synthetic knowledge UI evidence',speaker:'user',origin:'smoke',recordedAt:'2026-11-01T00:00:00Z'}]
+      });
+      if(imported.status !== 200) throw Error('Knowledge IPC import failed');
+      const show=[...document.querySelectorAll('#workspace-dialog button')].find(b=>b.textContent==='Show knowledge view');
+      const mode=document.querySelector('[aria-label="Knowledge view"]');
+      mode.value='table';show.click();
+      await new Promise((resolve,reject)=>{const start=Date.now();const poll=()=>document.querySelector('#workspace-dialog table') ? resolve() : Date.now()-start>5000 ? reject(Error('Knowledge table missing')) : setTimeout(poll,50);poll();});
+      const table=document.querySelector('#workspace-dialog table');
+      if(!table.textContent.includes('Synthetic knowledge UI evidence')) throw Error('Evidence missing from table');
+      return {imported:true, table:true, originalVisible:document.querySelector('#workspace-dialog section').textContent.includes('desktop-fixture')};
+    })()`);
+
   }
   if (!report.error) {
     report.visual = await window.webContents.executeJavaScript(`(async () => {

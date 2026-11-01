@@ -5,6 +5,29 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const ROOT_FILES = new Set([
+  // Reviewed account-connect paths already present on reachable branches.
+  'docs/ACCOUNT-CONNECT-CHECKPOINT.md',
+  'docs/REMOTE-CONNECTOR.md',
+  'plugin/skills/remote-continuity/SKILL.md',
+  'scripts/check-account-link.mjs',
+  'scripts/prepare-remote-connector.mjs',
+  'scripts/remote-connector.mjs',
+  'src/account-link.mjs',
+  'src/remote-connector.mjs',
+  'src/remote-plugin-package.mjs',
+  'test/account-link.test.mjs',
+  'test/remote-connector.test.mjs',
+  'test/remote-plugin.test.mjs',
+
+  'src/knowledge.mjs',
+  'src/knowledge-import.mjs',
+  'src/knowledge-capture.mjs',
+  'scripts/capture-knowledge.mjs',
+  'scripts/evaluate-knowledge.mjs',
+  'app/ui/knowledge.js',
+  'test/knowledge.test.mjs',
+  'docs/knowledge.md',
+  'docs/KNOWLEDGE-CHECKPOINT.md',
   '.agents/plugins/marketplace.json',
   '.claude-plugin/marketplace.json',
   'plugin/runtime.mjs',

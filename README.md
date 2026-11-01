@@ -28,6 +28,10 @@ access is not a general permission to reuse the new service implementation. The
 previously released core in [src/legacy](src/legacy) remains MIT. Read
 [LICENSE](LICENSE) and [the licensing boundaries](docs/licensing.md).
 
+Evidence-backed decision histories, immutable source entries, versioned AI
+interpretations and previewable normalized imports are described in the
+[knowledge guide](docs/knowledge.md).
+
 ## Start a separate environment
 
 Requires Node.js 24.13 or newer. Install with `npm ci` (install scripts fetch the Electron and ONNX runtime binaries). Generate

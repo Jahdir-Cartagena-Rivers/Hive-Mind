@@ -25,6 +25,9 @@ const fail = (status, message) => {
   throw new BrainError(status, message);
 };
 const fields = {
+  evidence: ["text", "speaker", "origin", "recordedAt"],
+  interpretation: ["summary", "referenceIds", "model", "schema", "runId", "active", "tags"],
+  decision: ["statement", "status", "rationale", "referenceIds"],
   task: [
     "objective",
     "status",
@@ -94,6 +97,11 @@ export async function brainSnapshot(
     }
   }
   const terms = query.toLowerCase().match(/[\p{L}\p{N}]{2,}/gu) ?? [];
+  const searchText = new Map(terms.length ? s.records.map(r => [r.id, JSON.stringify([r.title, r.data]).toLowerCase()]) : []);
+  const matchingSources = new Set(s.records.filter(r =>
+    (!projects || visible(r, projects)) &&
+    terms.some(term => searchText.get(r.id).includes(term))
+  ).map(r => r.id));
   const ranked = s.records
     .filter(
       (r) =>
@@ -104,10 +112,12 @@ export async function brainSnapshot(
       score:
         (semantic.includes(r.id) ? 2 / (1 + semantic.indexOf(r.id)) : 0) +
         terms.reduce(
-          (v, term) => v + (JSON.stringify([r.title, r.data]).toLowerCase().includes(term) ? 1 : 0),
+          (v, term) => v + (searchText.get(r.id).includes(term) ? 1 : 0),
           0,
         ),
     }))
+    .map(hit => hit.score || !["decision", "interpretation"].includes(hit.r.kind)
+      ? hit : { ...hit, score: (hit.r.data.referenceIds ?? []).some(id => matchingSources.has(id)) ? 0.5 : 0 })
     .filter((r) => !terms.length || r.score > 0)
     .sort((a, b) => b.score - a.score || b.r.updatedAt.localeCompare(a.r.updatedAt));
   return {
@@ -120,6 +130,10 @@ export async function brainSnapshot(
 }
 
 function checkLinks(record, state) {
+  if (["interpretation", "decision"].includes(record.kind) && !record.data.referenceIds?.length)
+    fail(400, "At least one evidence reference is required.");
+  if (record.kind === "interpretation" && record.source.type !== "agent")
+    fail(400, "Interpretations must identify an agent source.");
   const ids = new Map(state.records.map((r) => [r.id, r]));
   const preferred =
     record.kind === "artifact" && record.data.preferredRevision
@@ -236,6 +250,8 @@ export async function saveBrainRecord(file, input, internal = false, beforeCommi
       data: input.data,
     };
     const revision = fingerprint(body);
+    if (existing?.kind === "evidence" && existing.revision !== revision)
+      fail(409, "Original evidence is immutable. Import a new version instead.");
     if (existing?.revision === revision && !input.eventId) return [store, existing];
     if (
       existing &&
@@ -323,6 +339,20 @@ export async function forgetBrainRecord(file, { id, revision }) {
         (r) => r.id === id || (r.kind === "relation" && [r.data.from, r.data.to].includes(id)),
       )
       .map((r) => r.id);
+    // Derived claims must not outlive forgotten supporting evidence, including
+    // support retained in a historical revision. Cascade only typed derivations.
+    let expanded = true;
+    while (expanded) {
+      expanded = false;
+      for (const candidate of state.records) {
+        if (removed.includes(candidate.id) || !["decision", "interpretation"].includes(candidate.kind)) continue;
+        const references = [candidate.data, ...candidate.history.map(h => h.data)]
+          .flatMap(data => data.referenceIds ?? []);
+        if (references.some(reference => removed.includes(reference))) {
+          removed.push(candidate.id); expanded = true;
+        }
+      }
+    }
     const records = state.records
       .filter((r) => !removed.includes(r.id))
       .map((r) => {
@@ -491,6 +521,8 @@ export async function brainContext(file, input = {}, activity = () => []) {
   const candidates = s.records.filter(
     (r) =>
       r.kind !== "client" &&
+      !(r.kind === "interpretation" && !r.data.active) &&
+      !(r.kind === "decision" && ["rejected", "superseded"].includes(r.data.status)) &&
       visible(r, effectiveProjects) &&
       (!r.data.taskId || r.data.taskId === taskId) &&
       (!(r.kind === "task") || r.id === taskId),

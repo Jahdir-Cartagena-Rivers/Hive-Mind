@@ -31,6 +31,9 @@
   let modified = false;
   let loadVersion = 0;
   const definitions = {
+    evidence: [["text", "Original words (immutable after saving)", "text"], ["speaker", "Speaker", "text"], ["origin", "Source location", "text"], ["recordedAt", "Original date (ISO)", "text"]],
+    decision: [["statement", "Decision", "text"], ["status", "State", ["proposed", "accepted", "superseded", "rejected"]], ["rationale", "Why", "text"], ["referenceIds", "Evidence IDs (one per line)", "lines"]],
+    interpretation: [["summary", "AI interpretation", "text"], ["referenceIds", "Evidence IDs (one per line)", "lines"], ["model", "Model", "text"], ["schema", "Organization schema", "text"], ["runId", "Run ID", "text"], ["tags", "Tags", "lines"]],
     task: [
       ["objective", "Objective", "text"],
       ["status", "Status", ["open", "active", "blocked", "paused", "done"]],
@@ -411,9 +414,10 @@
               : node.value,
           ]),
         );
-        if (!["relation"].includes(kind))
+        if (!["relation", "evidence", "decision", "interpretation"].includes(kind))
           data.assetIds = imageControls.filter((a) => a.checked.checked).map((a) => a.id);
-        if (taskSelect?.value) data.taskId = taskSelect.value;
+        if (kind === "interpretation") data.active = record?.data.active ?? true;
+        if (taskSelect?.value && !["evidence", "decision", "interpretation"].includes(kind)) data.taskId = taskSelect.value;
         if (kind === "task" && record?.data.lease) data.lease = record.data.lease;
         if (kind === "collection")
           data.annotations = imageControls
@@ -436,6 +440,7 @@
             data,
             Object.fromEntries(Object.entries(relationships).map(([k, node]) => [k, node.value])),
           );
+        if (kind === "interpretation") common.source.type = "agent";
         const saved = await request("/v1/brain/save", {
           ...common,
           kind,
